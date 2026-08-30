@@ -1,4 +1,4 @@
-"""Pruebas de la abstracción LLM sin realizar llamadas externas."""
+"""Pruebas de la abstracción LLM sin llamadas de red."""
 
 from src.services.llm_service import (
     DemoCoachAnalysisProvider,
@@ -57,3 +57,20 @@ def test_demo_provider_generates_valid_structured_analysis():
     assert analysis.confianza == 0.65
     assert len(analysis.cambios_propuestos) == 1
     assert analysis.cambios_propuestos[0].fecha == "2026-09-01"
+
+
+def test_ollama_configuration_does_not_require_api_key(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "ollama")
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen2.5:3b")
+    monkeypatch.setenv(
+        "OLLAMA_BASE_URL",
+        "http://localhost:11434/v1",
+    )
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    configuration = load_provider_configuration()
+
+    assert configuration.is_demo_mode is False
+    assert configuration.provider == "ollama"
+    assert configuration.model == "qwen2.5:3b"
+    assert configuration.base_url == "http://localhost:11434/v1"
