@@ -3,15 +3,30 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
+
 
 import pandas as pd
 import streamlit as st
 
-from src.database import create_activity_session, get_recent_activity_sessions
+from src.database import (
+    create_activity_session,
+    get_recent_activity_sessions,
+    get_session_attachments,
+)
+
 from src.services.session_service import (
     SessionValidationError,
     build_activity_session,
 )
+
+from src.services.attachment_service import (
+    AttachmentValidationError,
+    save_uploaded_session_attachment,
+)
+
+
+
 
 SPORTS = [
     "Carrera",
@@ -176,6 +191,17 @@ def render_training_log() -> None:
                 "Al día siguiente",
                 options=["Sin dato", *range(0, 11)],
             )
+        
+        st.subheader("Captura opcional de actividad")
+
+        strava_image = st.file_uploader(
+            "Adjuntar captura de Strava o gráfico de entrenamiento",
+            type=["png", "jpg", "jpeg", "webp"],
+            help=(
+                "La imagen se almacena solo en este ordenador. "
+                "No se sube a GitHub ni a servicios externos."
+            ),
+        )        
 
         comments = st.text_area(
             "Comentarios",
@@ -212,7 +238,20 @@ def render_training_log() -> None:
                 fatigue=fatigue,
                 comments=comments,
             )
-            create_activity_session(session)
+            session_id = create_activity_session(session)
+
+            if strava_image is not None:
+                try:
+                    save_uploaded_session_attachment(
+                        session_id,
+                        strava_image,
+                    )
+                except AttachmentValidationError as error:
+                    st.warning(
+                        "El entrenamiento se ha guardado, pero no se pudo adjuntar "
+                        f"la imagen: {error}"
+                    )
+
             st.success("Entrenamiento guardado correctamente.")
             st.info(
                 "El plan no se marca como completado automáticamente. "
@@ -254,3 +293,41 @@ def render_training_log() -> None:
         use_container_width=True,
         hide_index=True,
     )
+
+    st.divider()
+    st.subheader("Capturas de entrenamientos")
+
+    session_options = {
+        session["id"]: (
+            f"{session['session_date']} · "
+            f"{session['sport']} · "
+            f"{session['session_type']}"
+        )
+        for session in recent_sessions
+    }
+
+    selected_session_id = st.selectbox(
+        "Selecciona una sesión para ver sus adjuntos",
+        options=list(session_options),
+        format_func=lambda session_id: session_options[session_id],
+    )
+
+    attachments = get_session_attachments(selected_session_id)
+
+    if not attachments:
+        st.info("Esta sesión no tiene capturas adjuntas.")
+    else:
+        for attachment in attachments:
+            image_path = Path(attachment["stored_path"])
+
+            if image_path.exists():
+                st.image(
+                    str(image_path),
+                    caption=attachment["original_file_name"],
+                    use_container_width=True,
+                )
+            else:
+                st.warning(
+                    "No se encuentra el archivo local de este adjunto."
+                )
+

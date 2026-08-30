@@ -226,3 +226,6 @@ data/imports/
 
 # Configuración local de VS Code
 .vscode/
+
+# Capturas de Strava y adjuntos locales de entrenamientos
+data/uploads/

@@ -1022,3 +1022,78 @@ def get_coach_analysis_history(
 
     return [dict(row) for row in rows]
 
+def _ensure_session_attachments_table(
+    connection: sqlite3.Connection,
+) -> None:
+    """Crea la tabla de adjuntos de sesiones si todavía no existe."""
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS session_attachments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            original_file_name TEXT NOT NULL,
+            stored_path TEXT NOT NULL,
+            mime_type TEXT,
+            size_bytes INTEGER,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (session_id)
+                REFERENCES activity_sessions(id)
+                ON DELETE CASCADE
+        )
+        """
+    )
+
+
+def create_session_attachment(
+    session_id: int,
+    original_file_name: str,
+    stored_path: str,
+    mime_type: str | None,
+    size_bytes: int,
+) -> int:
+    """Guarda los metadatos de un adjunto asociado a una sesión."""
+    with get_connection() as connection:
+        _ensure_session_attachments_table(connection)
+
+        cursor = connection.execute(
+            """
+            INSERT INTO session_attachments (
+                session_id,
+                original_file_name,
+                stored_path,
+                mime_type,
+                size_bytes
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                session_id,
+                original_file_name,
+                stored_path,
+                mime_type,
+                size_bytes,
+            ),
+        )
+
+    return int(cursor.lastrowid)
+
+
+def get_session_attachments(
+    session_id: int,
+) -> list[dict[str, Any]]:
+    """Obtiene los adjuntos de una sesión ordenados por fecha."""
+    with get_connection() as connection:
+        _ensure_session_attachments_table(connection)
+
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM session_attachments
+            WHERE session_id = ?
+            ORDER BY created_at DESC, id DESC
+            """,
+            (session_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+

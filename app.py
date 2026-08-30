@@ -78,7 +78,7 @@ def render_dashboard() -> None:
     next_competition = get_next_competition(today)
     completion_summary = metrics["completion_summary"]
 
-    st.title("🏃 Preparación San Silvestre Vallecana 2026")
+    st.title("Preparación San Silvestre Vallecana 2026")
     st.caption("Planificación, registro y análisis de entrenamiento")
 
     render_coach_panel()
@@ -223,7 +223,7 @@ def render_profile() -> None:
     """Permite editar el perfil deportivo inicial."""
     profile = get_profile()
 
-    st.title("👤 Perfil deportivo")
+    st.title("Perfil deportivo")
     st.caption("Estos datos se usarán más adelante para contextualizar el plan y el entrenador.")
 
     with st.form("profile_form"):
@@ -332,7 +332,7 @@ def main() -> None:
     """Configura la aplicación y dirige a cada sección."""
     st.set_page_config(
         page_title=APP_TITLE,
-        page_icon="🏃",
+        page_icon=None,
         layout="wide",
         initial_sidebar_state="expanded",
     )
