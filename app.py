@@ -14,8 +14,10 @@ from src.services.safety_rules import evaluate_training_state
 from src.ui.analytics import render_analytics
 from src.ui.import_data import render_import_data
 from src.ui.competitions import render_competitions
-from src.ui.planner import render_plan
+from src.ui.interactive_planner import render_plan
 from src.ui.coach import render_coach_page, render_coach_summary
+from src.ui.styles import apply_global_styles
+
 
 
 
@@ -334,6 +336,8 @@ def main() -> None:
         layout="wide",
         initial_sidebar_state="expanded",
     )
+
+    apply_global_styles()
 
     init_database()
 
