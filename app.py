@@ -14,6 +14,7 @@ from src.services.safety_rules import evaluate_training_state
 from src.ui.analytics import render_analytics
 from src.ui.import_data import render_import_data
 from src.ui.competitions import render_competitions
+from src.ui.planner import render_plan
 
 
 
@@ -257,93 +258,6 @@ def render_dashboard() -> None:
         "la rodilla, reduce carga y consulta a un profesional."
     )
 
-
-
-
-def render_plan() -> None:
-    """Muestra el bloque inicial de entrenamientos y permite cambiar su estado."""
-    st.title("📅 Plan semanal y mensual")
-    st.caption(
-        "Las fechas de carrera se han propuesto en martes y domingo para "
-        "evitar los días habituales de jiu-jitsu. Podrán editarse más adelante."
-    )
-
-    plan = get_training_plan()
-
-    if not plan:
-        st.info("No hay entrenamientos planificados.")
-        return
-
-    rows = [
-        {
-            "Fecha": training["planned_date"],
-            "Deporte": training["sport"],
-            "Tipo": training["session_type"],
-            "Descripción": training["description"],
-            "Km objetivo": training["target_distance_km"],
-            "RPE": training["target_rpe"],
-            "Estado": training["status"],
-            "Descarga": "Sí" if training["is_deload"] else "No",
-        }
-        for training in plan
-    ]
-
-    st.dataframe(
-        pd.DataFrame(rows),
-        use_container_width=True,
-        hide_index=True,
-    )
-
-    st.subheader("Detalle de las sesiones")
-
-    for training in plan:
-        label = (
-            f"{training['planned_date']} · {training['session_type']} "
-            f"({training['status']})"
-        )
-
-        with st.expander(label):
-            st.write(training["description"])
-            st.write(f"**Intensidad:** {training['target_intensity']}")
-            st.write(f"**RPE objetivo:** {training['target_rpe']}/10")
-            st.write(f"**Ritmo orientativo:** {training['target_pace']}")
-            st.write(f"**Terreno recomendado:** {training['terrain']}")
-            st.write(f"**Calentamiento:** {training['warmup']}")
-            st.write(f"**Parte principal:** {training['main_set']}")
-            st.write(f"**Vuelta a la calma:** {training['cooldown']}")
-            st.write(f"**Razonamiento:** {training['rationale']}")
-
-    st.divider()
-    st.subheader("Actualizar estado de una sesión")
-
-    training_options = {
-        training["id"]: (
-            f"{training['planned_date']} · {training['session_type']} · "
-            f"{training['description']}"
-        )
-        for training in plan
-    }
-
-    selected_training_id = st.selectbox(
-        "Entrenamiento",
-        options=list(training_options),
-        format_func=lambda training_id: training_options[training_id],
-    )
-
-    selected_training = next(
-        training for training in plan if training["id"] == selected_training_id
-    )
-
-    new_status = st.selectbox(
-        "Nuevo estado",
-        options=TRAINING_STATUSES,
-        index=TRAINING_STATUSES.index(selected_training["status"]),
-    )
-
-    if st.button("Guardar estado", type="primary"):
-        update_training_status(selected_training_id, new_status)
-        st.success("Estado actualizado correctamente.")
-        st.rerun()
 
 
 def render_profile() -> None:

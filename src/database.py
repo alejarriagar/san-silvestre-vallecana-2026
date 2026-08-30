@@ -860,3 +860,89 @@ def set_plan_version_decision(
             (decisions[decision], plan_version_id),
         )
 
+def get_planned_training_by_id(training_id: int) -> dict[str, Any] | None:
+    """Obtiene un entrenamiento planificado por su identificador."""
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM planned_trainings WHERE id = ?",
+            (training_id,),
+        ).fetchone()
+
+    return dict(row) if row else None
+
+
+def create_planned_training(training: dict[str, Any]) -> int:
+    """Crea un nuevo entrenamiento planificado."""
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO planned_trainings (
+                planned_date,
+                sport,
+                session_type,
+                description,
+                target_distance_km,
+                target_duration_min,
+                target_intensity,
+                target_rpe,
+                target_pace,
+                terrain,
+                warmup,
+                main_set,
+                cooldown,
+                rationale,
+                status,
+                is_deload
+            )
+            VALUES (
+                :planned_date,
+                :sport,
+                :session_type,
+                :description,
+                :target_distance_km,
+                :target_duration_min,
+                :target_intensity,
+                :target_rpe,
+                :target_pace,
+                :terrain,
+                :warmup,
+                :main_set,
+                :cooldown,
+                :rationale,
+                :status,
+                :is_deload
+            )
+            """,
+            training,
+        )
+
+    return int(cursor.lastrowid)
+
+
+def update_planned_training(training: dict[str, Any]) -> None:
+    """Actualiza todos los campos editables de un entrenamiento planificado."""
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE planned_trainings
+            SET
+                planned_date = :planned_date,
+                sport = :sport,
+                session_type = :session_type,
+                description = :description,
+                target_distance_km = :target_distance_km,
+                target_duration_min = :target_duration_min,
+                target_intensity = :target_intensity,
+                target_rpe = :target_rpe,
+                target_pace = :target_pace,
+                terrain = :terrain,
+                warmup = :warmup,
+                main_set = :main_set,
+                cooldown = :cooldown,
+                rationale = :rationale,
+                status = :status,
+                is_deload = :is_deload
+            WHERE id = :id
+            """,
+            training,
+        )
