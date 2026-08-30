@@ -13,6 +13,8 @@ from src.services.analytics_service import calculate_dashboard_metrics
 from src.services.safety_rules import evaluate_training_state
 from src.ui.analytics import render_analytics
 from src.ui.import_data import render_import_data
+from src.ui.competitions import render_competitions
+
 
 
 
@@ -442,33 +444,6 @@ def render_profile() -> None:
         )
         st.success("Perfil guardado correctamente.")
 
-
-def render_competitions() -> None:
-    """Muestra las competiciones que se han precargado."""
-    st.title("🏁 Competiciones")
-    st.caption("Los formularios para registrar resultados se añadirán en el siguiente incremento.")
-
-    competitions = get_competitions()
-
-    for competition in competitions:
-        with st.container(border=True):
-            left_column, right_column = st.columns([2, 1])
-
-            with left_column:
-                st.subheader(competition["name"])
-                st.write(f"**Fecha:** {competition['competition_date']}")
-                st.write(f"**Distancia:** {competition['distance_km']} km")
-                st.write(competition["comments"])
-
-            with right_column:
-                st.metric(
-                    "Objetivo",
-                    seconds_to_time(competition["goal_time_seconds"]),
-                )
-                st.metric(
-                    "Tiempo oficial",
-                    seconds_to_time(competition["official_time_seconds"]),
-                )
 
 
 def render_pending_section(title: str) -> None:

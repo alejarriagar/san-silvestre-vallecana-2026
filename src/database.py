@@ -735,3 +735,128 @@ def get_activity_sessions_for_duplicate_detection() -> list[dict[str, Any]]:
 
     return [dict(row) for row in rows]
 
+def get_competition_by_id(competition_id: int) -> dict[str, Any] | None:
+    """Obtiene una competición concreta por su identificador."""
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT * FROM competitions WHERE id = ?",
+            (competition_id,),
+        ).fetchone()
+
+    return dict(row) if row else None
+
+
+def create_competition(competition: dict[str, Any]) -> int:
+    """Crea una nueva competición y devuelve su identificador."""
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO competitions (
+                name,
+                competition_date,
+                distance_km,
+                goal_time_seconds,
+                comments
+            )
+            VALUES (
+                :name,
+                :competition_date,
+                :distance_km,
+                :goal_time_seconds,
+                :comments
+            )
+            """,
+            competition,
+        )
+
+    return int(cursor.lastrowid)
+
+
+def update_competition_result(
+    competition_id: int,
+    official_time_seconds: int,
+    average_pace_seconds_per_km: int,
+    average_heart_rate: int | None,
+    comments: str | None,
+) -> None:
+    """Guarda el resultado oficial de una competición."""
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE competitions
+            SET
+                official_time_seconds = ?,
+                average_pace_seconds_per_km = ?,
+                average_heart_rate = ?,
+                comments = ?
+            WHERE id = ?
+            """,
+            (
+                official_time_seconds,
+                average_pace_seconds_per_km,
+                average_heart_rate,
+                comments,
+                competition_id,
+            ),
+        )
+
+
+def create_plan_version(reason: str, snapshot_json: str) -> int:
+    """Guarda una propuesta de versión de plan pendiente de decisión."""
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO plan_versions (
+                reason,
+                snapshot_json,
+                accepted
+            )
+            VALUES (?, ?, 0)
+            """,
+            (reason, snapshot_json),
+        )
+
+    return int(cursor.lastrowid)
+
+
+def get_plan_versions() -> list[dict[str, Any]]:
+    """Obtiene el historial de propuestas de planificación."""
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM plan_versions
+            ORDER BY created_at DESC, id DESC
+            """
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def set_plan_version_decision(
+    plan_version_id: int,
+    decision: str,
+) -> None:
+    """Acepta o rechaza una propuesta de plan.
+
+    Se usa 1 para aceptada, 0 para pendiente y -1 para rechazada.
+    """
+    decisions = {
+        "Aceptada": 1,
+        "Pendiente": 0,
+        "Rechazada": -1,
+    }
+
+    if decision not in decisions:
+        raise ValueError(f"Decisión no válida: {decision}")
+
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE plan_versions
+            SET accepted = ?
+            WHERE id = ?
+            """,
+            (decisions[decision], plan_version_id),
+        )
+
