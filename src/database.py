@@ -558,3 +558,87 @@ def get_weekly_planned_distance(today: date) -> float:
         ).fetchone()
 
     return float(row["total_distance"] or 0.0)
+
+def create_activity_session(session: dict[str, Any]) -> int:
+    """Guarda un entrenamiento realizado y devuelve su identificador."""
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO activity_sessions (
+                session_date,
+                sport,
+                session_type,
+                duration_minutes,
+                distance_km,
+                average_pace_seconds_per_km,
+                average_heart_rate,
+                max_heart_rate,
+                elevation_gain_m,
+                rpe,
+                surface,
+                shoes,
+                pain_during,
+                pain_after,
+                pain_next_day,
+                sleep_hours,
+                fatigue,
+                comments,
+                source
+            )
+            VALUES (
+                :session_date,
+                :sport,
+                :session_type,
+                :duration_minutes,
+                :distance_km,
+                :average_pace_seconds_per_km,
+                :average_heart_rate,
+                :max_heart_rate,
+                :elevation_gain_m,
+                :rpe,
+                :surface,
+                :shoes,
+                :pain_during,
+                :pain_after,
+                :pain_next_day,
+                :sleep_hours,
+                :fatigue,
+                :comments,
+                :source
+            )
+            """,
+            session,
+        )
+
+    return int(cursor.lastrowid)
+
+
+def get_recent_activity_sessions(limit: int = 20) -> list[dict[str, Any]]:
+    """Obtiene las últimas sesiones realizadas, ordenadas por fecha."""
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM activity_sessions
+            ORDER BY session_date DESC, id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def get_last_activity_session() -> dict[str, Any] | None:
+    """Obtiene el último entrenamiento registrado."""
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT *
+            FROM activity_sessions
+            ORDER BY session_date DESC, id DESC
+            LIMIT 1
+            """
+        ).fetchone()
+
+    return dict(row) if row else None

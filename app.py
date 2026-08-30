@@ -8,6 +8,8 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
+from src.ui.training_log import render_training_log
+
 
 from src.database import (
     TRAINING_STATUSES,
@@ -424,12 +426,15 @@ def main() -> None:
         render_dashboard()
     elif page == "Plan semanal y mensual":
         render_plan()
+    elif page == "Registrar entrenamiento":
+        render_training_log()
     elif page == "Competiciones":
         render_competitions()
     elif page == "Perfil":
         render_profile()
     else:
         render_pending_section(page)
+
 
 
 if __name__ == "__main__":
