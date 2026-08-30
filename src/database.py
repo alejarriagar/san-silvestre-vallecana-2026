@@ -660,3 +660,78 @@ def get_activity_sessions_between(
         ).fetchall()
 
     return [dict(row) for row in rows]
+
+def create_activity_sessions(sessions: list[dict[str, Any]]) -> int:
+    """Guarda varias sesiones en una única transacción SQLite."""
+    if not sessions:
+        return 0
+
+    with get_connection() as connection:
+        connection.executemany(
+            """
+            INSERT INTO activity_sessions (
+                session_date,
+                sport,
+                session_type,
+                duration_minutes,
+                distance_km,
+                average_pace_seconds_per_km,
+                average_heart_rate,
+                max_heart_rate,
+                elevation_gain_m,
+                rpe,
+                surface,
+                shoes,
+                pain_during,
+                pain_after,
+                pain_next_day,
+                sleep_hours,
+                fatigue,
+                comments,
+                source
+            )
+            VALUES (
+                :session_date,
+                :sport,
+                :session_type,
+                :duration_minutes,
+                :distance_km,
+                :average_pace_seconds_per_km,
+                :average_heart_rate,
+                :max_heart_rate,
+                :elevation_gain_m,
+                :rpe,
+                :surface,
+                :shoes,
+                :pain_during,
+                :pain_after,
+                :pain_next_day,
+                :sleep_hours,
+                :fatigue,
+                :comments,
+                :source
+            )
+            """,
+            sessions,
+        )
+
+    return len(sessions)
+
+
+def get_activity_sessions_for_duplicate_detection() -> list[dict[str, Any]]:
+    """Obtiene los campos necesarios para detectar importaciones duplicadas."""
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                session_date,
+                sport,
+                session_type,
+                duration_minutes,
+                distance_km
+            FROM activity_sessions
+            """
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+

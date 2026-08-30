@@ -12,6 +12,8 @@ from src.ui.training_log import render_training_log
 from src.services.analytics_service import calculate_dashboard_metrics
 from src.services.safety_rules import evaluate_training_state
 from src.ui.analytics import render_analytics
+from src.ui.import_data import render_import_data
+
 
 
 
@@ -515,6 +517,8 @@ def main() -> None:
         render_plan()
     elif page == "Registrar entrenamiento":
         render_training_log()
+    elif page == "Importar datos":
+        render_import_data()
     elif page == "Competiciones":
         render_competitions()
     elif page == "Análisis y estadísticas":
