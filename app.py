@@ -9,6 +9,9 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 from src.ui.training_log import render_training_log
+from src.services.analytics_service import calculate_dashboard_metrics
+from src.services.safety_rules import evaluate_training_state
+
 
 
 from src.database import (
@@ -57,7 +60,11 @@ def render_coach_panel() -> None:
             "el análisis personalizado."
         )
 
-    st.success("Estado general inicial: verde")
+    st.caption(
+        "El dashboard aplica reglas deterministas basadas en dolor, sueño, "
+        "fatiga, RPE y carga disponible."
+    )
+
 
     left_column, right_column = st.columns(2)
 
@@ -92,74 +99,150 @@ def render_coach_panel() -> None:
 
 
 def render_dashboard() -> None:
-    """Renderiza la pantalla principal basada en los datos guardados."""
+    """Renderiza la pantalla principal con datos reales y reglas de seguridad."""
     today = date.today()
-    summary = get_completion_summary()
+
+    metrics = calculate_dashboard_metrics(today)
+    training_state = evaluate_training_state(
+        metrics["sessions_last_28_days"],
+        today,
+    )
+
     next_training = get_next_training(today)
     next_competition = get_next_competition(today)
-    weekly_planned_km = get_weekly_planned_distance(today)
+    completion_summary = metrics["completion_summary"]
 
     st.title("🏃 Preparación San Silvestre Vallecana 2026")
     st.caption("Planificación, registro y análisis de entrenamiento")
 
     render_coach_panel()
 
-    st.divider()
-    st.subheader("Resumen de preparación")
+    state_message = (
+        f"Estado general: **{training_state['estado'].upper()}** · "
+        f"Confianza del análisis: {training_state['confianza']:.0%}"
+    )
 
-    col_1, col_2, col_3, col_4 = st.columns(4)
-
-    if next_training:
-        next_training_name = (
-            f"{next_training['planned_date']} · {next_training['session_type']}"
-        )
+    if training_state["estado"] == "verde":
+        st.success(state_message)
+    elif training_state["estado"] == "amarillo":
+        st.warning(state_message)
     else:
-        next_training_name = "Sin sesiones pendientes"
+        st.error(state_message)
+
+    st.write(training_state["resumen"])
+
+    st.divider()
+    st.subheader("Resumen de carga")
+
+    col_1, col_2, col_3, col_4, col_5 = st.columns(5)
+
+    col_1.metric(
+        "Km carrera esta semana",
+        f"{metrics['weekly_running_km']:.1f} km",
+    )
+    col_2.metric(
+        "Km carrera este mes",
+        f"{metrics['monthly_running_km']:.1f} km",
+    )
+    col_3.metric(
+        "Carga estimada semanal",
+        f"{metrics['total_weekly_load']:.0f}",
+    )
+    col_4.metric(
+        "Sesiones completadas",
+        f"{completion_summary['percentage']:.0f}%",
+    )
 
     if next_competition:
-        competition_days = max(
+        days_to_competition = max(
             (
                 date.fromisoformat(next_competition["competition_date"]) - today
             ).days,
             0,
         )
-        competition_name = next_competition["name"]
+        col_5.metric("Días hasta competición", days_to_competition)
     else:
-        competition_days = 0
-        competition_name = "Sin competiciones"
+        col_5.metric("Días hasta competición", "—")
 
-    col_1.metric("Próximo entrenamiento", next_training_name)
-    col_2.metric("Sesiones completadas", f"{summary['percentage']:.0f}%")
-    col_3.metric("Km previstos esta semana", f"{weekly_planned_km:.1f} km")
-    col_4.metric("Días hasta próxima competición", competition_days)
+    st.caption(
+        "Kilómetros semanales: "
+        f"{metrics['weekly_running_km']:.1f} km reales / "
+        f"{metrics['planned_weekly_running_km']:.1f} km previstos."
+    )
+    st.caption(
+        "Carga estimada = duración en minutos × RPE. "
+        "Solo se incluye cuando ambos datos están disponibles."
+    )
 
-    st.caption(f"Próxima competición: {competition_name}")
-    st.progress(summary["percentage"] / 100)
+    if metrics["weekly_load_by_sport"]:
+        st.subheader("Carga semanal por deporte")
+
+        load_rows = [
+            {
+                "Deporte": sport,
+                "Carga estimada": round(load, 1),
+            }
+            for sport, load in metrics["weekly_load_by_sport"].items()
+        ]
+
+        st.dataframe(
+            pd.DataFrame(load_rows),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    st.divider()
+    st.subheader("Alertas y recomendaciones")
+
+    if training_state["alertas"]:
+        for alert in training_state["alertas"]:
+            st.warning(alert)
+    else:
+        st.info("No hay alertas deterministas activas en los datos disponibles.")
+
+    for recommendation in training_state["recomendaciones"]:
+        st.write(f"- {recommendation}")
+
+    if training_state["preguntas_pendientes"]:
+        with st.expander("Datos que faltan para mejorar la recomendación"):
+            for question in training_state["preguntas_pendientes"]:
+                st.write(f"- {question}")
+
+    st.divider()
+    st.subheader("Último entrenamiento realizado")
+
+    last_session = metrics["last_activity_session"]
+
+    if last_session:
+        st.write(
+            f"**{last_session['session_date']} · {last_session['sport']} · "
+            f"{last_session['session_type']}**"
+        )
+        st.write(
+            f"Distancia: {last_session['distance_km'] or '—'} km · "
+            f"Duración: {last_session['duration_minutes'] or '—'} min · "
+            f"RPE: {last_session['rpe'] if last_session['rpe'] is not None else '—'}"
+        )
+    else:
+        st.info("Todavía no hay entrenamientos realizados registrados.")
 
     if next_training:
         st.divider()
-        st.subheader("Próximo entrenamiento")
+        st.subheader("Próximo entrenamiento planificado")
 
-        st.markdown(f"### {next_training['session_type']} · {next_training['planned_date']}")
+        st.markdown(
+            f"### {next_training['session_type']} · "
+            f"{next_training['planned_date']}"
+        )
         st.write(next_training["description"])
+        st.write(f"**RPE objetivo:** {next_training['target_rpe']}/10")
+        st.write(f"**Terreno recomendado:** {next_training['terrain']}")
 
-        detail_left, detail_right = st.columns(2)
-
-        with detail_left:
-            st.write(f"**Distancia objetivo:** {next_training['target_distance_km']} km")
-            st.write(f"**RPE objetivo:** {next_training['target_rpe']}/10")
-            st.write(f"**Intensidad:** {next_training['target_intensity']}")
-
-        with detail_right:
-            st.write(f"**Terreno:** {next_training['terrain']}")
-            st.write(f"**Ritmo orientativo:** {next_training['target_pace']}")
-            st.write(f"**Estado:** {next_training['status']}")
-
-        with st.expander("Ver estructura y razonamiento"):
-            st.write(f"**Calentamiento:** {next_training['warmup']}")
-            st.write(f"**Parte principal:** {next_training['main_set']}")
-            st.write(f"**Vuelta a la calma:** {next_training['cooldown']}")
-            st.write(f"**Razonamiento:** {next_training['rationale']}")
+        if training_state["restringir_calidad"]:
+            st.warning(
+                "Las reglas actuales recomiendan no realizar calidad ni cuestas "
+                "hasta revisar dolor y recuperación."
+            )
 
     st.divider()
     st.warning(
@@ -167,6 +250,8 @@ def render_dashboard() -> None:
         "Si aparece hinchazón, bloqueo, inestabilidad o sensación de fallo en "
         "la rodilla, reduce carga y consulta a un profesional."
     )
+
+
 
 
 def render_plan() -> None:

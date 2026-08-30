@@ -642,3 +642,21 @@ def get_last_activity_session() -> dict[str, Any] | None:
         ).fetchone()
 
     return dict(row) if row else None
+
+def get_activity_sessions_between(
+    start_date: date,
+    end_date: date,
+) -> list[dict[str, Any]]:
+    """Obtiene sesiones realizadas entre dos fechas, ambas incluidas."""
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM activity_sessions
+            WHERE session_date BETWEEN ? AND ?
+            ORDER BY session_date DESC, id DESC
+            """,
+            (start_date.isoformat(), end_date.isoformat()),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
