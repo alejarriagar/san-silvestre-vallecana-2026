@@ -116,7 +116,7 @@ def render_training_log() -> None:
         "La carga se calculará posteriormente como duración × RPE."
     )
 
-    with st.form("activity_session_form", clear_on_submit=True):
+    with st.form("activity_session_form"):
         first_column, second_column = st.columns(2)
 
         with first_column:
@@ -130,9 +130,14 @@ def render_training_log() -> None:
                 options=SESSION_TYPES_BY_SPORT[sport],
             )
             duration_minutes = st.text_input(
-                "Duración (minutos)",
-                placeholder="Ejemplo: 45",
-            )
+            "Duración",
+            placeholder="Ejemplo: 45:23 o 1:45:23",
+            help=(
+                "Formatos admitidos: 45 minutos, 45:23 minutos y segundos, "
+                "o 1:45:23 horas, minutos y segundos."
+            ),
+        )
+
             distance_km = st.text_input(
                 "Distancia (km)",
                 placeholder="Ejemplo: 6,5",

@@ -31,6 +31,78 @@ def optional_float(value: str, field_name: str) -> float | None:
 
     return converted_value
 
+def optional_duration_to_minutes(value: str) -> float | None:
+    """Convierte duración a minutos.
+
+    Formatos aceptados:
+    - 45       -> 45 minutos
+    - 45,5     -> 45,5 minutos
+    - 45:23    -> 45 minutos y 23 segundos
+    - 1:45:23  -> 1 hora, 45 minutos y 23 segundos
+    """
+    cleaned_value = value.strip()
+
+    if not cleaned_value:
+        return None
+
+    if ":" not in cleaned_value:
+        duration = optional_float(cleaned_value, "Duración")
+
+        if duration is not None and duration <= 0:
+            raise SessionValidationError(
+                "La duración debe ser mayor que cero."
+            )
+
+        return duration
+
+    parts = [part.strip() for part in cleaned_value.split(":")]
+
+    if len(parts) not in {2, 3}:
+        raise SessionValidationError(
+            "La duración debe tener formato MM:SS o HH:MM:SS."
+        )
+
+    try:
+        values = [int(part) for part in parts]
+    except ValueError as error:
+        raise SessionValidationError(
+            "La duración debe contener solo números y dos puntos. "
+            "Ejemplos: 45:23 o 1:45:23."
+        ) from error
+
+    if any(part < 0 for part in values):
+        raise SessionValidationError(
+            "La duración no puede contener valores negativos."
+        )
+
+    if len(values) == 2:
+        minutes, seconds = values
+
+        if seconds >= 60:
+            raise SessionValidationError(
+                "Los segundos deben estar entre 0 y 59."
+            )
+
+        duration = minutes + seconds / 60
+    else:
+        hours, minutes, seconds = values
+
+        if minutes >= 60 or seconds >= 60:
+            raise SessionValidationError(
+                "Los minutos y segundos deben estar entre 0 y 59."
+            )
+
+        duration = hours * 60 + minutes + seconds / 60
+
+    if duration <= 0:
+        raise SessionValidationError(
+            "La duración debe ser mayor que cero."
+        )
+
+    return duration
+
+
+
 
 def optional_positive_integer(value: str, field_name: str) -> int | None:
     """Convierte un texto opcional a entero positivo."""
@@ -135,7 +207,7 @@ def build_activity_session(
     if not session_type:
         raise SessionValidationError("Debes seleccionar un tipo de sesión.")
 
-    parsed_duration = optional_float(duration_minutes, "Duración")
+    parsed_duration = optional_duration_to_minutes(duration_minutes)
     parsed_distance = optional_float(distance_km, "Distancia")
 
     if parsed_duration is not None and parsed_duration <= 0:
