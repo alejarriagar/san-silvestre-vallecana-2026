@@ -15,6 +15,8 @@ from src.ui.analytics import render_analytics
 from src.ui.import_data import render_import_data
 from src.ui.competitions import render_competitions
 from src.ui.planner import render_plan
+from src.ui.coach import render_coach_page, render_coach_summary
+
 
 
 
@@ -55,54 +57,9 @@ def seconds_to_time(total_seconds: int | None) -> str:
 
 
 def render_coach_panel() -> None:
-    """Muestra la versión inicial del entrenador en modo demo."""
-    llm_provider = os.getenv("LLM_PROVIDER", "demo")
-    openai_api_key = os.getenv("OPENAI_API_KEY", "")
+    """Muestra el último análisis guardado del entrenador."""
+    render_coach_summary()
 
-    st.subheader("🧠 Entrenador de preparación")
-
-    if llm_provider == "demo" or not openai_api_key:
-        st.info(
-            "Modo demo activo: añade una clave de modelo para activar "
-            "el análisis personalizado."
-        )
-
-    st.caption(
-        "El dashboard aplica reglas deterministas basadas en dolor, sueño, "
-        "fatiga, RPE y carga disponible."
-    )
-
-
-    left_column, right_column = st.columns(2)
-
-    with left_column:
-        st.markdown("#### Resumen")
-        st.write(
-            "La planificación inicial mantiene dos sesiones de carrera por "
-            "semana y prioriza progresar sin agravar la molestia de rodilla."
-        )
-
-        st.markdown("#### Aspectos positivos")
-        st.markdown(
-            "- Buena base deportiva general.\n"
-            "- Objetivo concreto: 10 km por debajo de 50:00.\n"
-            "- Inicio progresivo y controlado."
-        )
-
-    with right_column:
-        st.markdown("#### Alertas y ajustes")
-        st.markdown(
-            "- Registrar el dolor de rodilla durante, después y al día siguiente.\n"
-            "- No recuperar automáticamente sesiones canceladas.\n"
-            "- Evitar calidad o cuestas si el dolor supera 3/10."
-        )
-
-        st.markdown("#### Datos que faltan")
-        st.markdown(
-            "- Entrenamientos realizados.\n"
-            "- Sueño, fatiga y RPE.\n"
-            "- Evolución del dolor de rodilla."
-        )
 
 
 def render_dashboard() -> None:
@@ -386,6 +343,7 @@ def main() -> None:
             "Sección",
             options=[
                 "Dashboard",
+                "Entrenador LLM",
                 "Plan semanal y mensual",
                 "Registrar entrenamiento",
                 "Importar datos",
@@ -402,6 +360,8 @@ def main() -> None:
 
     if page == "Dashboard":
         render_dashboard()
+    elif page == "Entrenador LLM":
+        render_coach_page()
     elif page == "Plan semanal y mensual":
         render_plan()
     elif page == "Registrar entrenamiento":

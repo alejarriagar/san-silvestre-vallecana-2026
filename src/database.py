@@ -946,3 +946,79 @@ def update_planned_training(training: dict[str, Any]) -> None:
             """,
             training,
         )
+
+def _ensure_coach_analyses_table(connection: sqlite3.Connection) -> None:
+    """Crea la tabla de análisis del entrenador si todavía no existe."""
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS coach_analyses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            provider TEXT NOT NULL,
+            model TEXT,
+            analysis_json TEXT NOT NULL
+        )
+        """
+    )
+
+
+def save_coach_analysis(
+    provider: str,
+    model: str | None,
+    analysis_json: str,
+) -> int:
+    """Guarda un análisis estructurado generado por el entrenador."""
+    with get_connection() as connection:
+        _ensure_coach_analyses_table(connection)
+
+        cursor = connection.execute(
+            """
+            INSERT INTO coach_analyses (
+                provider,
+                model,
+                analysis_json
+            )
+            VALUES (?, ?, ?)
+            """,
+            (provider, model, analysis_json),
+        )
+
+    return int(cursor.lastrowid)
+
+
+def get_latest_coach_analysis() -> dict[str, Any] | None:
+    """Obtiene el análisis más reciente del entrenador."""
+    with get_connection() as connection:
+        _ensure_coach_analyses_table(connection)
+
+        row = connection.execute(
+            """
+            SELECT *
+            FROM coach_analyses
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """
+        ).fetchone()
+
+    return dict(row) if row else None
+
+
+def get_coach_analysis_history(
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    """Obtiene el historial de análisis del entrenador."""
+    with get_connection() as connection:
+        _ensure_coach_analyses_table(connection)
+
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM coach_analyses
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
