@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 from src.ui.training_log import render_training_log
 from src.services.analytics_service import calculate_dashboard_metrics
 from src.services.safety_rules import evaluate_training_state
+from src.ui.analytics import render_analytics
+
 
 
 
@@ -515,6 +517,8 @@ def main() -> None:
         render_training_log()
     elif page == "Competiciones":
         render_competitions()
+    elif page == "Análisis y estadísticas":
+        render_analytics()
     elif page == "Perfil":
         render_profile()
     else:
