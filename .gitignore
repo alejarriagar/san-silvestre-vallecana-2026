@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Datos locales de la aplicación
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+data/imports/
+!data/.gitkeep
+
+# Configuración local de VS Code
+.vscode/
