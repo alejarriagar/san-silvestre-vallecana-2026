@@ -1097,3 +1097,136 @@ def get_session_attachments(
 
     return [dict(row) for row in rows]
 
+def delete_activity_session(session_id: int) -> list[str]:
+    """Elimina una sesión realizada y devuelve las rutas de sus adjuntos."""
+    with get_connection() as connection:
+        _ensure_session_attachments_table(connection)
+
+        attachment_rows = connection.execute(
+            """
+            SELECT stored_path
+            FROM session_attachments
+            WHERE session_id = ?
+            """,
+            (session_id,),
+        ).fetchall()
+
+        cursor = connection.execute(
+            """
+            DELETE FROM activity_sessions
+            WHERE id = ?
+            """,
+            (session_id,),
+        )
+
+        if cursor.rowcount == 0:
+            raise ValueError("No se ha encontrado la sesión a eliminar.")
+
+    return [
+        str(row["stored_path"])
+        for row in attachment_rows
+    ]
+
+
+def _ensure_session_nutrition_table(
+    connection: sqlite3.Connection,
+) -> None:
+    """Crea la tabla de nutrición previa si todavía no existe."""
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS session_nutrition (
+            session_id INTEGER PRIMARY KEY,
+            pre_workout_food TEXT,
+            minutes_before INTEGER,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (session_id)
+                REFERENCES activity_sessions(id)
+                ON DELETE CASCADE
+        )
+        """
+    )
+
+
+def save_session_nutrition(
+    session_id: int,
+    pre_workout_food: str | None,
+    minutes_before: int | None,
+) -> None:
+    """Guarda o actualiza la comida previa de una sesión."""
+    with get_connection() as connection:
+        _ensure_session_nutrition_table(connection)
+
+        if not pre_workout_food and minutes_before is None:
+            connection.execute(
+                """
+                DELETE FROM session_nutrition
+                WHERE session_id = ?
+                """,
+                (session_id,),
+            )
+            return
+
+        connection.execute(
+            """
+            INSERT INTO session_nutrition (
+                session_id,
+                pre_workout_food,
+                minutes_before
+            )
+            VALUES (?, ?, ?)
+            ON CONFLICT(session_id)
+            DO UPDATE SET
+                pre_workout_food = excluded.pre_workout_food,
+                minutes_before = excluded.minutes_before
+            """,
+            (
+                session_id,
+                pre_workout_food,
+                minutes_before,
+            ),
+        )
+
+
+def get_session_nutrition(
+    session_id: int,
+) -> dict[str, Any] | None:
+    """Obtiene la comida previa asociada a una sesión."""
+    with get_connection() as connection:
+        _ensure_session_nutrition_table(connection)
+
+        row = connection.execute(
+            """
+            SELECT *
+            FROM session_nutrition
+            WHERE session_id = ?
+            """,
+            (session_id,),
+        ).fetchone()
+
+    return dict(row) if row else None
+
+
+def move_planned_training(
+    training_id: int,
+    new_date: date,
+) -> None:
+    """Mueve una sesión planificada a otra fecha."""
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE planned_trainings
+            SET planned_date = ?
+            WHERE id = ?
+            """,
+            (
+                new_date.isoformat(),
+                training_id,
+            ),
+        )
+
+        if cursor.rowcount == 0:
+            raise ValueError(
+                "No se ha encontrado el entrenamiento que quieres mover."
+            )
+
+

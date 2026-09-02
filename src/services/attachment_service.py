@@ -6,7 +6,11 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from src.database import DATABASE_PATH, create_session_attachment
+from src.database import (
+    DATABASE_PATH,
+    create_session_attachment,
+    delete_activity_session,
+)
 
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
 
@@ -81,3 +85,33 @@ def save_uploaded_session_attachment(
         "stored_path": str(stored_path),
         "size_bytes": size_bytes,
     }
+
+
+def delete_activity_session_with_attachments(
+    session_id: int,
+) -> int:
+    """Elimina una sesión y sus imágenes adjuntas locales.
+
+    Devuelve el número de archivos eliminados.
+    """
+    attachment_paths = delete_activity_session(session_id)
+    uploads_directory = UPLOADS_DIRECTORY.resolve()
+    deleted_files = 0
+
+    for stored_path in attachment_paths:
+        image_path = Path(stored_path).resolve()
+
+        # Solo permite borrar archivos dentro del directorio local esperado.
+        if not image_path.is_relative_to(uploads_directory):
+            continue
+
+        try:
+            if image_path.exists():
+                image_path.unlink()
+                deleted_files += 1
+        except OSError:
+            # La sesión ya se ha eliminado de SQLite; no se bloquea la acción
+            # si un archivo local no se puede eliminar.
+            continue
+
+    return deleted_files

@@ -245,3 +245,26 @@ def build_activity_session(
         "comments": comments.strip() or None,
         "source": "Manual",
     }
+def optional_nonnegative_integer(
+    value: str,
+    field_name: str,
+) -> int | None:
+    """Convierte un entero opcional que puede ser cero."""
+    cleaned_value = value.strip()
+
+    if not cleaned_value:
+        return None
+
+    try:
+        converted_value = int(cleaned_value)
+    except ValueError as error:
+        raise SessionValidationError(
+            f"El campo «{field_name}» debe ser un número entero."
+        ) from error
+
+    if converted_value < 0:
+        raise SessionValidationError(
+            f"El campo «{field_name}» no puede ser negativo."
+        )
+
+    return converted_value

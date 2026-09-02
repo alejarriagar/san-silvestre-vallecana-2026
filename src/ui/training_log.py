@@ -13,17 +13,23 @@ from src.database import (
     create_activity_session,
     get_recent_activity_sessions,
     get_session_attachments,
+    save_session_nutrition,
 )
 
 from src.services.session_service import (
     SessionValidationError,
     build_activity_session,
+    optional_nonnegative_integer,
 )
 
 from src.services.attachment_service import (
     AttachmentValidationError,
+    delete_activity_session_with_attachments,
     save_uploaded_session_attachment,
 )
+
+
+
 
 
 
@@ -108,10 +114,16 @@ def pace_to_text(seconds: int | None) -> str:
     return f"{minutes}:{remaining_seconds:02d} min/km"
 
 
-def render_training_log() -> None:
+def render_training_log(show_title: bool = True) -> None:
+
     """Renderiza el formulario de registro y las últimas sesiones."""
-    st.title("✍️ Registrar entrenamiento")
+    if show_title:
+        st.title("Registrar entrenamiento")
+    else:
+        st.subheader("Registrar entrenamiento")
+
     st.caption(
+
         "Los campos sin datos conocidos pueden dejarse vacíos. "
         "La carga se calculará posteriormente como duración × RPE."
     )
@@ -197,6 +209,26 @@ def render_training_log() -> None:
                 options=["Sin dato", *range(0, 11)],
             )
         
+        st.subheader("Comida previa al entrenamiento")
+
+        pre_workout_food = st.text_area(
+            "Qué comiste antes",
+            placeholder=(
+                "Ejemplo: plátano y bebida con carbohidratos; "
+                "café; tostada..."
+            ),
+            help=(
+                "Este dato permitirá estudiar en el futuro qué estrategia "
+                "nutricional se asocia con mejores sensaciones."
+            ),
+        )
+
+        pre_workout_minutes = st.text_input(
+            "Cuántos minutos antes",
+            placeholder="Ejemplo: 30",
+            help="Puedes introducir 0 si comiste justo antes de entrenar.",
+        )
+
         st.subheader("Captura opcional de actividad")
 
         strava_image = st.file_uploader(
@@ -223,6 +255,11 @@ def render_training_log() -> None:
 
     if submitted:
         try:
+            parsed_pre_workout_minutes = optional_nonnegative_integer(
+                pre_workout_minutes,
+                "Minutos antes",
+            )
+            
             session = build_activity_session(
                 session_date=session_date,
                 sport=sport,
@@ -244,6 +281,7 @@ def render_training_log() -> None:
                 comments=comments,
             )
             session_id = create_activity_session(session)
+
 
             if strava_image is not None:
                 try:
@@ -300,6 +338,8 @@ def render_training_log() -> None:
     )
 
     st.divider()
+        
+
     st.subheader("Capturas de entrenamientos")
 
     session_options = {
@@ -335,4 +375,78 @@ def render_training_log() -> None:
                 st.warning(
                     "No se encuentra el archivo local de este adjunto."
                 )
+    st.divider()
+    st.subheader("Eliminar registro realizado")
+
+    st.warning(
+        "Esta acción elimina permanentemente el entrenamiento registrado "
+        "y sus capturas adjuntas locales. No elimina el entrenamiento "
+        "planificado."
+    )
+
+    delete_session_options = {
+        session["id"]: (
+            f"{session['session_date']} · "
+            f"{session['sport']} · "
+            f"{session['session_type']}"
+        )
+        for session in recent_sessions
+    }
+
+    selected_session_to_delete = st.selectbox(
+        "Selecciona el registro que quieres eliminar",
+        options=list(delete_session_options),
+        format_func=lambda session_id: delete_session_options[session_id],
+        key="delete_activity_session_selector",
+    )
+
+    deletion_confirmed = st.checkbox(
+        "Entiendo que esta acción no se puede deshacer.",
+        key="delete_activity_session_confirm",
+    )
+
+    if st.button(
+        "Eliminar registro seleccionado",
+        key="delete_activity_session_button",
+        disabled=not deletion_confirmed,
+    ):
+        try:
+            deleted_files = delete_activity_session_with_attachments(
+                selected_session_to_delete
+            )
+
+            st.success(
+                "Registro eliminado correctamente. "
+                f"Capturas eliminadas: {deleted_files}."
+            )
+            st.rerun()
+        except ValueError as error:
+            st.error(str(error))
+
+
+def optional_nonnegative_integer(
+    value: str,
+    field_name: str,
+) -> int | None:
+    """Convierte un entero opcional que puede ser cero."""
+    cleaned_value = value.strip()
+
+    if not cleaned_value:
+        return None
+
+    try:
+        converted_value = int(cleaned_value)
+    except ValueError as error:
+        raise SessionValidationError(
+            f"El campo «{field_name}» debe ser un número entero."
+        ) from error
+
+    if converted_value < 0:
+        raise SessionValidationError(
+            f"El campo «{field_name}» no puede ser negativo."
+        )
+
+    return converted_value
+
+
 

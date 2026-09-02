@@ -8,7 +8,6 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
-from src.ui.training_log import render_training_log
 from src.services.analytics_service import calculate_dashboard_metrics
 from src.services.safety_rules import evaluate_training_state
 from src.ui.analytics import render_analytics
@@ -17,6 +16,8 @@ from src.ui.competitions import render_competitions
 from src.ui.interactive_planner import render_plan
 from src.ui.coach import render_coach_page, render_coach_summary
 from src.ui.styles import apply_global_styles
+from src.ui.home import render_home
+
 
 
 
@@ -346,10 +347,9 @@ def main() -> None:
         page = st.radio(
             "Sección",
             options=[
-                "Dashboard",
+                "Inicio",
                 "Entrenador LLM",
                 "Plan semanal y mensual",
-                "Registrar entrenamiento",
                 "Importar datos",
                 "Competiciones",
                 "Análisis y estadísticas",
@@ -362,14 +362,12 @@ def main() -> None:
         st.write("10 km por debajo de 50:00")
         st.write("Ritmo de referencia: 4:59 min/km")
 
-    if page == "Dashboard":
-        render_dashboard()
+    if page == "Inicio":
+        render_home()
     elif page == "Entrenador LLM":
         render_coach_page()
     elif page == "Plan semanal y mensual":
         render_plan()
-    elif page == "Registrar entrenamiento":
-        render_training_log()
     elif page == "Importar datos":
         render_import_data()
     elif page == "Competiciones":
