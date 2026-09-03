@@ -13,8 +13,11 @@ from src.database import (
     create_activity_session,
     get_recent_activity_sessions,
     get_session_attachments,
+    get_training_plan,
+    save_activity_plan_link,
     save_session_nutrition,
 )
+
 
 from src.services.session_service import (
     SessionValidationError,
@@ -128,7 +131,35 @@ def render_training_log(show_title: bool = True) -> None:
         "La carga se calculará posteriormente como duración × RPE."
     )
 
+    planned_training_options = {
+        "Sin vincular": None,
+    }
+
+    for planned_training in get_training_plan():
+        label = (
+            f"{planned_training['planned_date']} · "
+            f"{planned_training['session_type']} · "
+            f"{planned_training['description']}"
+        )
+        planned_training_options[label] = planned_training["id"]
+    
+    
+
+
     with st.form("activity_session_form"):
+        selected_planned_training_label = st.selectbox(
+            "Sesión planificada relacionada",
+            options=list(planned_training_options),
+            help=(
+                "Selecciona la sesión del plan que corresponde a este "
+                "entrenamiento. Puedes dejarlo sin vincular."
+            ),
+        )
+
+        planned_training_id = planned_training_options[
+            selected_planned_training_label
+        ]
+
         first_column, second_column = st.columns(2)
 
         with first_column:
@@ -282,6 +313,18 @@ def render_training_log(show_title: bool = True) -> None:
             )
             session_id = create_activity_session(session)
 
+            save_activity_plan_link(
+                activity_session_id=session_id,
+                planned_training_id=planned_training_id,
+            )
+
+            save_session_nutrition(
+                session_id=session_id,
+                pre_workout_food=pre_workout_food.strip() or None,
+                minutes_before=parsed_pre_workout_minutes,
+            )
+   
+
 
             if strava_image is not None:
                 try:
@@ -312,24 +355,50 @@ def render_training_log(show_title: bool = True) -> None:
         st.info("Todavía no hay entrenamientos registrados.")
         return
 
-    rows = [
-        {
-            "Fecha": session["session_date"],
-            "Deporte": session["sport"],
-            "Tipo": session["session_type"],
-            "Duración (min)": session["duration_minutes"] or "—",
-            "Distancia (km)": session["distance_km"] or "—",
-            "Ritmo": pace_to_text(session["average_pace_seconds_per_km"]),
-            "RPE": session["rpe"] if session["rpe"] is not None else "—",
-            "Dolor después": (
-                session["pain_after"]
-                if session["pain_after"] is not None
-                else "—"
-            ),
-            "Origen": session["source"],
-        }
-        for session in recent_sessions
-    ]
+    rows = []
+
+    for session in recent_sessions:
+        related_training = get_linked_planned_training(
+            session["id"]
+        )
+
+        rows.append(
+            {
+                "Fecha": session["session_date"],
+                "Deporte": session["sport"],
+                "Tipo": session["session_type"],
+                "Plan relacionado": (
+                    related_training["session_type"]
+                    if related_training
+                    else "Sin vincular"
+                ),
+                "Duración (min)": (
+                    session["duration_minutes"]
+                    if session["duration_minutes"] is not None
+                    else "—"
+                ),
+                "Distancia (km)": (
+                    session["distance_km"]
+                    if session["distance_km"] is not None
+                    else "—"
+                ),
+                "Ritmo": pace_to_text(
+                    session["average_pace_seconds_per_km"]
+                ),
+                "RPE": (
+                    session["rpe"]
+                    if session["rpe"] is not None
+                    else "—"
+                ),
+                "Dolor después": (
+                    session["pain_after"]
+                    if session["pain_after"] is not None
+                    else "—"
+                ),
+                "Origen": session["source"],
+            }
+        )
+
 
     st.dataframe(
         pd.DataFrame(rows),

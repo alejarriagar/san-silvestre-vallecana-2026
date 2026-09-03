@@ -1229,4 +1229,81 @@ def move_planned_training(
                 "No se ha encontrado el entrenamiento que quieres mover."
             )
 
+def _ensure_activity_plan_links_table(
+    connection: sqlite3.Connection,
+) -> None:
+    """Crea la tabla que relaciona sesiones realizadas y planificadas."""
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS activity_plan_links (
+            activity_session_id INTEGER PRIMARY KEY,
+            planned_training_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (activity_session_id)
+                REFERENCES activity_sessions(id)
+                ON DELETE CASCADE,
+            FOREIGN KEY (planned_training_id)
+                REFERENCES planned_trainings(id)
+                ON DELETE CASCADE
+        )
+        """
+    )
+
+
+def save_activity_plan_link(
+    activity_session_id: int,
+    planned_training_id: int | None,
+) -> None:
+    """Guarda o elimina el vínculo entre actividad y plan."""
+    with get_connection() as connection:
+        _ensure_activity_plan_links_table(connection)
+
+        if planned_training_id is None:
+            connection.execute(
+                """
+                DELETE FROM activity_plan_links
+                WHERE activity_session_id = ?
+                """,
+                (activity_session_id,),
+            )
+            return
+
+        connection.execute(
+            """
+            INSERT INTO activity_plan_links (
+                activity_session_id,
+                planned_training_id
+            )
+            VALUES (?, ?)
+            ON CONFLICT(activity_session_id)
+            DO UPDATE SET
+                planned_training_id = excluded.planned_training_id
+            """,
+            (
+                activity_session_id,
+                planned_training_id,
+            ),
+        )
+
+
+def get_linked_planned_training(
+    activity_session_id: int,
+) -> dict[str, Any] | None:
+    """Obtiene el entrenamiento planificado vinculado a una actividad."""
+    with get_connection() as connection:
+        _ensure_activity_plan_links_table(connection)
+
+        row = connection.execute(
+            """
+            SELECT planned_trainings.*
+            FROM planned_trainings
+            INNER JOIN activity_plan_links
+                ON planned_trainings.id =
+                   activity_plan_links.planned_training_id
+            WHERE activity_plan_links.activity_session_id = ?
+            """,
+            (activity_session_id,),
+        ).fetchone()
+
+    return dict(row) if row else None
 
