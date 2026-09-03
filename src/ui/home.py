@@ -650,6 +650,7 @@ def render_home() -> None:
             "Si aparecen hinchazón, bloqueo, inestabilidad o sensación de "
             "fallo en la rodilla, reduce carga y consulta a un profesional."
         )
+        
     st.divider()
 
     with st.expander(
@@ -657,4 +658,5 @@ def render_home() -> None:
         expanded=False,
     ):
         render_training_log(show_title=False)
+
 

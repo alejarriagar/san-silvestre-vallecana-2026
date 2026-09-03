@@ -1,4 +1,4 @@
-"""Estilos globales de la aplicación Streamlit."""
+"""Estilos visuales globales de la aplicación."""
 
 from __future__ import annotations
 
@@ -6,85 +6,190 @@ import streamlit as st
 
 
 def apply_global_styles() -> None:
-    """Aplica estilos visuales compartidos en todas las pantallas."""
+    """Aplica el sistema visual oscuro de la aplicación."""
     st.markdown(
         """
         <style>
+            :root {
+                --app-background: #0B0C0E;
+                --surface: #18191D;
+                --surface-elevated: #222328;
+                --border: #303239;
+                --text-primary: #F4F5F2;
+                --text-secondary: #A8AAA5;
+                --accent: #C9F05A;
+                --accent-dark: #152000;
+                --success: #8EDB9C;
+                --warning: #F0C76B;
+                --danger: #F28585;
+            }
+
             [data-testid="stAppViewContainer"] {
-                background: #F7F8F5;
+                background: var(--app-background);
+            }
+
+            [data-testid="stHeader"] {
+                background: var(--app-background);
             }
 
             [data-testid="stSidebar"] {
-                background: #FFFFFF;
-                border-right: 1px solid #E3E8E3;
+                background: #111216;
+                border-right: 1px solid var(--border);
             }
 
-            [data-testid="stSidebar"] h1,
-            [data-testid="stSidebar"] h2,
-            [data-testid="stSidebar"] h3 {
-                color: #123526;
+            [data-testid="stSidebar"] section {
+                padding-top: 2rem;
             }
 
-            h1, h2, h3 {
-                color: #17211C;
-                letter-spacing: -0.02em;
+            [data-testid="stSidebar"] label,
+            [data-testid="stSidebar"] p {
+                color: var(--text-secondary);
+            }
+
+            h1,
+            h2,
+            h3 {
+                color: var(--text-primary);
+                letter-spacing: -0.025em;
+            }
+
+            h1 {
+                font-size: 2.1rem;
+                font-weight: 750;
+            }
+
+            h2 {
+                font-size: 1.35rem;
+                font-weight: 700;
+            }
+
+            h3 {
+                font-size: 1.05rem;
+                font-weight: 700;
+            }
+
+            p,
+            li,
+            label {
+                color: var(--text-primary);
             }
 
             [data-testid="stMetric"] {
-                background: #FFFFFF;
-                border: 1px solid #E3E8E3;
+                background: var(--surface);
+                border: 1px solid var(--border);
                 border-radius: 14px;
-                padding: 14px;
+                padding: 14px 16px;
+            }
+
+            [data-testid="stMetricLabel"] {
+                color: var(--text-secondary);
+            }
+
+            [data-testid="stMetricValue"] {
+                color: var(--text-primary);
+                font-weight: 750;
             }
 
             .stButton > button {
-                border-radius: 10px;
-                border: 1px solid #D9E1DA;
-                font-weight: 600;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 999px;
+                color: var(--text-primary);
+                font-weight: 650;
+                min-height: 2.35rem;
+                transition: border-color 120ms ease,
+                            background 120ms ease,
+                            transform 120ms ease;
+            }
+
+            .stButton > button:hover {
+                background: var(--surface-elevated);
+                border-color: var(--accent);
+                color: var(--text-primary);
+                transform: translateY(-1px);
             }
 
             button[data-testid="stBaseButton-primary"] {
-                background-color: #123526;
-                border-color: #123526;
-                color: #FFFFFF;
+                background: var(--accent);
+                border-color: var(--accent);
+                color: #111508;
             }
 
             button[data-testid="stBaseButton-primary"]:hover {
-                background-color: #1D5139;
-                border-color: #1D5139;
+                background: #D8F879;
+                border-color: #D8F879;
+                color: #111508;
+            }
+
+            [data-testid="stTextInput"] input,
+            [data-testid="stNumberInput"] input,
+            [data-testid="stTextArea"] textarea {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                color: var(--text-primary);
+            }
+
+            [data-baseweb="select"] > div {
+                background: var(--surface);
+                border-color: var(--border);
+                border-radius: 10px;
+            }
+
+            [data-testid="stExpander"] {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 14px;
+            }
+
+            [data-testid="stTabs"] [role="tab"] {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 999px;
+                color: var(--text-secondary);
+                margin-right: 6px;
+                padding: 7px 16px;
+            }
+
+            [data-testid="stTabs"] [aria-selected="true"] {
+                background: var(--accent);
+                color: #111508;
+            }
+
+            [data-testid="stProgressBar"] > div > div > div > div {
+                background: var(--accent);
             }
 
             .calendar-session {
-                background: #FFFFFF;
-                border: 1px solid #E0E7E1;
-                border-left: 4px solid #123526;
-                border-radius: 8px;
-                color: #17211C;
-                font-size: 0.76rem;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-left: 3px solid var(--accent);
+                border-radius: 9px;
+                color: var(--text-primary);
+                font-size: 0.74rem;
                 line-height: 1.25;
                 margin: 5px 0;
-                padding: 7px;
-            }
-
-            .calendar-session.cancelled {
-                border-left-color: #B54040;
-                color: #7A3535;
-                opacity: 0.72;
+                padding: 8px;
             }
 
             .calendar-session.completed {
-                border-left-color: #2D8A57;
+                border-left-color: var(--success);
             }
 
             .calendar-session.modified {
-                border-left-color: #B7771C;
+                border-left-color: var(--warning);
+            }
+
+            .calendar-session.cancelled {
+                border-left-color: var(--danger);
+                opacity: 0.65;
             }
 
             .planner-detail {
-                background: #FFFFFF;
-                border: 1px solid #E0E7E1;
+                background: var(--surface);
+                border: 1px solid var(--border);
                 border-radius: 16px;
-                color: #17211C;
+                color: var(--text-primary);
                 padding: 20px;
             }
 
@@ -95,41 +200,49 @@ def apply_global_styles() -> None:
             .status-badge {
                 border-radius: 999px;
                 display: inline-block;
-                font-size: 0.78rem;
-                font-weight: 700;
+                font-size: 0.75rem;
+                font-weight: 750;
                 margin-bottom: 12px;
-                padding: 5px 10px;
+                padding: 5px 11px;
             }
 
             .status-pending {
-                background: #FFF3CD;
-                color: #765900;
+                background: #3D371D;
+                color: var(--warning);
             }
 
             .status-completed {
-                background: #DCF4E5;
-                color: #1D6A40;
+                background: #193422;
+                color: var(--success);
             }
 
             .status-modified {
-                background: #FCE7C1;
-                color: #85570B;
+                background: #40341D;
+                color: var(--warning);
             }
 
             .status-cancelled {
-                background: #F9DCDC;
-                color: #8A3030;
+                background: #422323;
+                color: var(--danger);
             }
 
             .section-caption {
-                color: #657067;
-                font-size: 0.9rem;
+                color: var(--text-secondary);
+                font-size: 0.88rem;
             }
 
             [data-testid="stDataFrame"] {
-                border: 1px solid #E3E8E3;
+                border: 1px solid var(--border);
                 border-radius: 12px;
                 overflow: hidden;
+            }
+
+            [data-testid="stAlert"] {
+                border-radius: 12px;
+            }
+
+            hr {
+                border-color: var(--border);
             }
         </style>
         """,

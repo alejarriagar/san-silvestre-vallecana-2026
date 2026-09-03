@@ -17,6 +17,8 @@ from src.ui.interactive_planner import render_plan
 from src.ui.coach import render_coach_page, render_coach_summary
 from src.ui.styles import apply_global_styles
 from src.ui.home import render_home
+from src.ui.navigation import render_navigation
+
 
 
 
@@ -343,19 +345,14 @@ def main() -> None:
     init_database()
 
     with st.sidebar:
-        st.header("Navegación")
-        page = st.radio(
-            "Sección",
-            options=[
-                "Inicio",
-                "Entrenador LLM",
-                "Plan semanal y mensual",
-                "Importar datos",
-                "Competiciones",
-                "Análisis y estadísticas",
-                "Perfil",
-            ],
-        )
+        page = render_navigation()
+
+        st.divider()
+        st.markdown("#### Objetivo principal")
+        st.write("10 km por debajo de 50:00")
+        st.write("Ritmo de referencia: 4:59 min/km")
+
+
 
         st.divider()
         st.markdown("#### Objetivo principal")
@@ -364,20 +361,19 @@ def main() -> None:
 
     if page == "Inicio":
         render_home()
-    elif page == "Entrenador LLM":
-        render_coach_page()
-    elif page == "Plan semanal y mensual":
+    elif page == "Progreso":
+        render_analytics()
+    elif page == "Plan completo":
         render_plan()
-    elif page == "Importar datos":
-        render_import_data()
     elif page == "Competiciones":
         render_competitions()
-    elif page == "Análisis y estadísticas":
-        render_analytics()
+    elif page == "Importar datos":
+        render_import_data()
     elif page == "Perfil":
         render_profile()
     else:
-        render_pending_section(page)
+        st.info("Sección pendiente de configurar.")
+
 
 
 
