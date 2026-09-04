@@ -222,6 +222,15 @@ def _seed_competitions(connection: sqlite3.Connection) -> None:
 
 def _seed_initial_plan(connection: sqlite3.Connection) -> None:
     """Precarga el bloque de entrenamiento inicial proporcionado."""
+
+    existing_plan = connection.execute(
+        "SELECT 1 FROM planned_trainings LIMIT 1"
+    ).fetchone()
+
+    if existing_plan is not None:
+        return
+
+
     trainings = [
         (
             "2026-08-29",
@@ -380,7 +389,7 @@ def _seed_initial_plan(connection: sqlite3.Connection) -> None:
 
     connection.executemany(
         """
-        INSERT OR IGNORE INTO planned_trainings (
+        INSERT INTO planned_trainings (
             planned_date,
             sport,
             session_type,
@@ -1206,28 +1215,169 @@ def get_session_nutrition(
     return dict(row) if row else None
 
 
+def _remove_planned_training_unique_constraint(
+    connection: sqlite3.Connection,
+) -> None:
+    """Migra planned_trainings para permitir sesiones similares el mismo día."""
+    table_row = connection.execute(
+        """
+        SELECT sql
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'planned_trainings'
+        """
+    ).fetchone()
+
+    if table_row is None or not table_row["sql"]:
+        return
+
+    normalized_sql = (
+        table_row["sql"]
+        .upper()
+        .replace(" ", "")
+        .replace("\n", "")
+    )
+
+    constraint_signature = "UNIQUE(PLANNED_DATE,DESCRIPTION)"
+
+    if constraint_signature not in normalized_sql:
+        return
+
+    connection.execute("PRAGMA foreign_keys = OFF")
+
+    try:
+        connection.execute(
+            """
+            DROP TABLE IF EXISTS planned_trainings_migrated
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE TABLE planned_trainings_migrated (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                planned_date TEXT NOT NULL,
+                sport TEXT NOT NULL,
+                session_type TEXT NOT NULL,
+                description TEXT NOT NULL,
+                target_distance_km REAL,
+                target_duration_min REAL,
+                target_intensity TEXT,
+                target_rpe INTEGER,
+                target_pace TEXT,
+                terrain TEXT,
+                warmup TEXT,
+                main_set TEXT,
+                cooldown TEXT,
+                rationale TEXT,
+                status TEXT NOT NULL DEFAULT 'Pendiente',
+                is_deload INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            INSERT INTO planned_trainings_migrated (
+                id,
+                planned_date,
+                sport,
+                session_type,
+                description,
+                target_distance_km,
+                target_duration_min,
+                target_intensity,
+                target_rpe,
+                target_pace,
+                terrain,
+                warmup,
+                main_set,
+                cooldown,
+                rationale,
+                status,
+                is_deload,
+                created_at
+            )
+            SELECT
+                id,
+                planned_date,
+                sport,
+                session_type,
+                description,
+                target_distance_km,
+                target_duration_min,
+                target_intensity,
+                target_rpe,
+                target_pace,
+                terrain,
+                warmup,
+                main_set,
+                cooldown,
+                rationale,
+                status,
+                is_deload,
+                created_at
+            FROM planned_trainings
+            """
+        )
+
+        connection.execute(
+            """
+            DROP TABLE planned_trainings
+            """
+        )
+
+        connection.execute(
+            """
+            ALTER TABLE planned_trainings_migrated
+            RENAME TO planned_trainings
+            """
+        )
+    finally:
+        connection.execute("PRAGMA foreign_keys = ON")
+
+
 def move_planned_training(
     training_id: int,
     new_date: date,
 ) -> None:
-    """Mueve una sesión planificada a otra fecha."""
+    """Mueve una sesión planificada a otra fecha sin duplicarla."""
     with get_connection() as connection:
-        cursor = connection.execute(
+        _remove_planned_training_unique_constraint(connection)
+
+        current_row = connection.execute(
+            """
+            SELECT planned_date
+            FROM planned_trainings
+            WHERE id = ?
+            """,
+            (training_id,),
+        ).fetchone()
+
+        if current_row is None:
+            raise ValueError(
+                "No se ha encontrado el entrenamiento que quieres mover."
+            )
+
+        new_date_iso = new_date.isoformat()
+
+        # Evita procesar dos veces el mismo evento enviado por el calendario.
+        if current_row["planned_date"] == new_date_iso:
+            return
+
+        connection.execute(
             """
             UPDATE planned_trainings
             SET planned_date = ?
             WHERE id = ?
             """,
             (
-                new_date.isoformat(),
+                new_date_iso,
                 training_id,
             ),
         )
 
-        if cursor.rowcount == 0:
-            raise ValueError(
-                "No se ha encontrado el entrenamiento que quieres mover."
-            )
 
 def _ensure_activity_plan_links_table(
     connection: sqlite3.Connection,

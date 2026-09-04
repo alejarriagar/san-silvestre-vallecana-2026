@@ -26,6 +26,7 @@ from src.services.session_evaluation_service import (
     evaluate_selected_session,
 )
 from src.ui.training_log import render_training_log
+from src.ui.drag_calendar import render_drag_calendar
 
 
 
@@ -563,15 +564,12 @@ def render_home() -> None:
     )
 
     selected_date = st.session_state["home_selected_date"]
-    week_start = date.fromisoformat(
-        st.session_state["home_week_start"]
-    )
-    week_end = week_start + timedelta(days=6)
-
     activities = get_activity_sessions_between(
-        week_start,
-        week_end,
+        date(2000, 1, 1),
+        today,
     )
+
+    
 
     plan_by_date = group_by_date(trainings, "planned_date")
     activities_by_date = group_by_date(activities, "session_date")
@@ -607,7 +605,11 @@ def render_home() -> None:
     )
 
     st.divider()
-    render_week_calendar(plan_by_date, activities_by_date)
+    render_drag_calendar(
+        trainings=trainings,
+        activities=activities,
+    )
+
 
     st.divider()
     st.caption(f"Día seleccionado: {selected_date}")
@@ -650,7 +652,7 @@ def render_home() -> None:
             "Si aparecen hinchazón, bloqueo, inestabilidad o sensación de "
             "fallo en la rodilla, reduce carga y consulta a un profesional."
         )
-        
+
     st.divider()
 
     with st.expander(

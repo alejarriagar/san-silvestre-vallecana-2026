@@ -11,12 +11,12 @@ import streamlit as st
 
 from src.database import (
     create_activity_session,
+    get_linked_planned_training,
     get_recent_activity_sessions,
     get_session_attachments,
-    get_training_plan,
-    save_activity_plan_link,
     save_session_nutrition,
 )
+
 
 
 from src.services.session_service import (
