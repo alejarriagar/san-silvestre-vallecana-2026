@@ -62,11 +62,12 @@ def build_calendar_events(
     events: list[dict[str, Any]] = []
 
     plan_colors = {
-        "Pendiente": "#C9F05A",
-        "Completado": "#76D68C",
-        "Modificado": "#E3B45B",
-        "Cancelado": "#C66A6A",
+        "Pendiente": "#22e5ff",
+        "Completado": "#33e0a1",
+        "Modificado": "#ffb547",
+        "Cancelado": "#ff5d7d",
     }
+
 
     for training in trainings:
         status = training["status"]
@@ -180,39 +181,40 @@ def render_drag_calendar(
 
     custom_css = """
         .fc {
-            --fc-page-bg-color: #0B0C0E;
-            --fc-neutral-bg-color: #18191D;
-            --fc-border-color: #303239;
-            --fc-list-event-hover-bg-color: #222328;
-            --fc-today-bg-color: rgba(201, 240, 90, 0.10);
-            color: #F4F5F2;
-            font-family: sans-serif;
+            --fc-page-bg-color: #05070d;
+            --fc-neutral-bg-color: #0c1220;
+            --fc-border-color: rgba(0,229,255,.14);
+            --fc-list-event-hover-bg-color: #0c1220;
+            --fc-today-bg-color: rgba(34, 229, 255, 0.08);
+            color: #eef2fb;
+            font-family: "Inter", sans-serif;
         }
 
         .fc .fc-toolbar-title {
-            color: #F4F5F2;
+            color: #eef2fb;
+            font-family: "Space Grotesk", sans-serif;
             font-size: 1.15rem;
             font-weight: 700;
         }
 
         .fc .fc-button {
-            background: #18191D;
-            border: 1px solid #303239;
+            background: #0c1220;
+            border: 1px solid rgba(0,229,255,.14);
             border-radius: 999px;
-            color: #F4F5F2;
+            color: #eef2fb;
             font-weight: 600;
         }
 
         .fc .fc-button:hover,
         .fc .fc-button-active {
-            background: #C9F05A;
-            border-color: #C9F05A;
-            color: #10140D;
+            background: #22e5ff;
+            border-color: #22e5ff;
+            color: #05070d;
         }
 
         .fc .fc-col-header-cell-cushion,
         .fc .fc-daygrid-day-number {
-            color: #A8AAA5;
+            color: #8b93ac;
         }
 
         .fc-event {
@@ -227,6 +229,7 @@ def render_drag_calendar(
             cursor: grabbing;
         }
     """
+
 
     state = calendar(
         events=events,

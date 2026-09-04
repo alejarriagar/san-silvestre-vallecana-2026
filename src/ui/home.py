@@ -27,6 +27,7 @@ from src.services.session_evaluation_service import (
 )
 from src.ui.training_log import render_training_log
 from src.ui.drag_calendar import render_drag_calendar
+from src.ui.styles import render_hero, render_status_tag
 
 
 
@@ -284,40 +285,83 @@ def render_planned_training_detail(
             if item["id"] == selected_training_id
         )
 
-    css_class = status_class(training["status"])
+    status_tone = {
+        "Pendiente": "warning",
+        "Completado": "success",
+        "Modificado": "warning",
+        "Cancelado": "danger",
+    }.get(training["status"], "neutral")
+
+    tags_html = "".join(
+        [
+            render_status_tag(training["status"], status_tone),
+            render_status_tag(training["sport"], "neutral"),
+            render_status_tag(
+                "Descarga",
+                "neutral",
+            )
+            if training["is_deload"]
+            else "",
+        ]
+    )
+
+    rpe_badge = (
+        f'{training["target_rpe"]}/10 RPE'
+        if training["target_rpe"] is not None
+        else "Sin RPE objetivo"
+    )
 
     st.markdown(
         f"""
-        <div class="planner-detail">
-            <div class="status-badge status-{css_class}">
-                {html.escape(training["status"])}
+        <div class="qi-card">
+            <div class="qi-card-header">
+                <div>
+                    <div class="qi-card-title">
+                        {html.escape(training["session_type"])}
+                    </div>
+                    <div class="qi-card-subtitle">
+                        Planificado · {html.escape(training["planned_date"])}
+                    </div>
+                </div>
+                <span class="qi-match">{html.escape(rpe_badge)}</span>
             </div>
-            <h3>{html.escape(training["session_type"])}</h3>
-            <p>{html.escape(training["description"])}</p>
+            <div class="qi-tags">{tags_html}</div>
+            <div class="qi-description">
+                {html.escape(training["description"])}
+            </div>
+            <div class="qi-metadata-grid">
+                <div>
+                    <div class="qi-metadata-label">Distancia</div>
+                    <div class="qi-metadata-value">
+                        {format_value(training["target_distance_km"], " km")}
+                    </div>
+                </div>
+                <div>
+                    <div class="qi-metadata-label">Duración</div>
+                    <div class="qi-metadata-value">
+                        {format_value(training["target_duration_min"], " min")}
+                    </div>
+                </div>
+                <div>
+                    <div class="qi-metadata-label">Terreno</div>
+                    <div class="qi-metadata-value">
+                        {html.escape(training["terrain"] or "—")}
+                    </div>
+                </div>
+                <div>
+                    <div class="qi-metadata-label">Ritmo</div>
+                    <div class="qi-metadata-value">
+                        {html.escape(training["target_pace"] or "—")}
+                    </div>
+                </div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    metric_1, metric_2, metric_3 = st.columns(3)
-
-    metric_1.metric(
-        "Distancia",
-        format_value(training["target_distance_km"], " km"),
-    )
-    metric_2.metric(
-        "Duración",
-        format_value(training["target_duration_min"], " min"),
-    )
-    metric_3.metric(
-        "RPE objetivo",
-        format_value(training["target_rpe"], "/10"),
-    )
-
     with st.expander("Ver planificación completa"):
         st.write(f"**Intensidad:** {training['target_intensity'] or '—'}")
-        st.write(f"**Ritmo orientativo:** {training['target_pace'] or '—'}")
-        st.write(f"**Terreno:** {training['terrain'] or '—'}")
         st.write(f"**Calentamiento:** {training['warmup'] or '—'}")
         st.write(f"**Parte principal:** {training['main_set'] or '—'}")
         st.write(f"**Vuelta a la calma:** {training['cooldown'] or '—'}")
@@ -361,14 +405,14 @@ def render_planned_training_detail(
                 )
                 st.rerun()
 
-
     return training
+
 
 
 def render_activity_detail(
     activities: list[dict[str, Any]],
 ) -> dict[str, Any] | None:
-    """Muestra el entrenamiento registrado y sus adjuntos."""
+    """Muestra el entrenamiento registrado, su nutrición y sus adjuntos."""
     if not activities:
         st.info("No hay entrenamiento registrado para este día.")
         return None
@@ -402,38 +446,76 @@ def render_activity_detail(
         if item["id"] == selected_activity_id
     )
 
-    with st.container(border=True):
-        st.subheader(
-            f"{activity['sport']} · {activity['session_type']}"
-        )
+    rpe_badge = (
+        f'{activity["rpe"]}/10 RPE'
+        if activity["rpe"] is not None
+        else "Sin RPE"
+    )
 
-        metric_1, metric_2, metric_3 = st.columns(3)
+    tags_html = "".join(
+        [
+            render_status_tag(activity["sport"], "neutral"),
+            render_status_tag(
+                activity["session_type"] or "Sin tipo",
+                "neutral",
+            ),
+            render_status_tag(activity["source"], "neutral"),
+        ]
+    )
 
-        metric_1.metric(
-            "Distancia",
-            format_value(activity["distance_km"], " km"),
-        )
-        metric_2.metric(
-            "Duración",
-            format_value(activity["duration_minutes"], " min"),
-        )
-        metric_3.metric(
-            "RPE",
-            format_value(activity["rpe"], "/10"),
-        )
+    description_text = activity["comments"] or "Sin comentarios registrados."
 
-        st.write(
-            f"**Ritmo medio:** "
-            f"{format_pace(activity['average_pace_seconds_per_km'])}"
-        )
-        st.write(
-            f"**FC media:** "
-            f"{format_value(activity['average_heart_rate'], ' ppm')}"
-        )
-        st.write(
-            f"**Desnivel positivo:** "
-            f"{format_value(activity['elevation_gain_m'], ' m')}"
-        )
+    st.markdown(
+        f"""
+        <div class="qi-card">
+            <div class="qi-card-header">
+                <div>
+                    <div class="qi-card-title">
+                        {html.escape(activity["sport"])} ·
+                        {html.escape(activity["session_type"] or "")}
+                    </div>
+                    <div class="qi-card-subtitle">
+                        Registrado · {html.escape(activity["session_date"])}
+                    </div>
+                </div>
+                <span class="qi-match">{html.escape(rpe_badge)}</span>
+            </div>
+            <div class="qi-tags">{tags_html}</div>
+            <div class="qi-description">
+                {html.escape(description_text)}
+            </div>
+            <div class="qi-metadata-grid">
+                <div>
+                    <div class="qi-metadata-label">Distancia</div>
+                    <div class="qi-metadata-value">
+                        {format_value(activity["distance_km"], " km")}
+                    </div>
+                </div>
+                <div>
+                    <div class="qi-metadata-label">Duración</div>
+                    <div class="qi-metadata-value">
+                        {format_value(activity["duration_minutes"], " min")}
+                    </div>
+                </div>
+                <div>
+                    <div class="qi-metadata-label">Ritmo medio</div>
+                    <div class="qi-metadata-value">
+                        {format_pace(activity["average_pace_seconds_per_km"])}
+                    </div>
+                </div>
+                <div>
+                    <div class="qi-metadata-label">FC media</div>
+                    <div class="qi-metadata-value">
+                        {format_value(activity["average_heart_rate"], " ppm")}
+                    </div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    with st.expander("Ver dolor, sueño y comida previa"):
         st.write(
             f"**Dolor durante:** "
             f"{format_value(activity['pain_during'], '/10')}"
@@ -446,21 +528,22 @@ def render_activity_detail(
             f"**Dolor al día siguiente:** "
             f"{format_value(activity['pain_next_day'], '/10')}"
         )
-    nutrition = get_session_nutrition(activity["id"])
-
-    if nutrition:
         st.write(
-            f"**Comida previa:** "
-            f"{nutrition['pre_workout_food'] or '—'}"
-        )
-        st.write(
-            f"**Tiempo antes:** "
-            f"{nutrition['minutes_before'] or 0} minutos"
+            f"**Desnivel positivo:** "
+            f"{format_value(activity['elevation_gain_m'], ' m')}"
         )
 
+        nutrition = get_session_nutrition(activity["id"])
 
-        if activity["comments"]:
-            st.write(f"**Comentarios:** {activity['comments']}")
+        if nutrition:
+            st.write(
+                f"**Comida previa:** "
+                f"{nutrition['pre_workout_food'] or '—'}"
+            )
+            st.write(
+                f"**Tiempo antes:** "
+                f"{nutrition['minutes_before'] or 0} minutos"
+            )
 
     attachments = get_session_attachments(activity["id"])
 
@@ -480,7 +563,8 @@ def render_activity_detail(
                 st.warning(
                     "No se encuentra el archivo local del adjunto."
                 )
-        st.divider()
+
+    st.divider()
 
     with st.expander("Eliminar este registro"):
         st.warning(
@@ -505,50 +589,8 @@ def render_activity_detail(
             st.success("Registro eliminado correctamente.")
             st.rerun()
 
-
     return activity
 
-
-def render_session_evaluation(
-    activity: dict[str, Any] | None,
-    planned_training: dict[str, Any] | None,
-    global_state: dict[str, Any],
-) -> None:
-    """Muestra la evaluación local del entrenador para el día seleccionado."""
-    evaluation = evaluate_selected_session(
-        activity_session=activity,
-        planned_training=planned_training,
-        global_state=global_state,
-    )
-
-    st.subheader("Evaluación del entrenador")
-
-    if evaluation["estado"] == "verde":
-        st.success(
-            f"Estado: {evaluation['estado'].upper()}"
-        )
-    elif evaluation["estado"] == "amarillo":
-        st.warning(
-            f"Estado: {evaluation['estado'].upper()}"
-        )
-    else:
-        st.error(
-            f"Estado: {evaluation['estado'].upper()}"
-        )
-
-    st.write(evaluation["resumen"])
-    st.write(
-        f"**Decisión para la siguiente sesión:** "
-        f"{evaluation['decision_siguiente']}"
-    )
-    st.write(
-        f"**Recomendación:** {evaluation['recomendacion']}"
-    )
-
-    if global_state.get("alertas"):
-        with st.expander("Alertas globales activas"):
-            for alert in global_state["alertas"]:
-                st.write(f"- {alert}")
 
 
 def render_home() -> None:
@@ -574,11 +616,15 @@ def render_home() -> None:
     plan_by_date = group_by_date(trainings, "planned_date")
     activities_by_date = group_by_date(activities, "session_date")
 
-    st.title("Preparación San Silvestre Vallecana 2026")
-    st.caption(
-        "Consulta el plan, registra tu actividad y revisa la recomendación "
-        "para la siguiente sesión."
+    render_hero(
+        eyebrow="Panel operativo de entrenamiento",
+        title="Encuentra la señal detrás de cada sesión.",
+        description=(
+            "Consulta el plan, registra tu actividad y revisa la "
+            "recomendación para la siguiente sesión."
+        ),
     )
+
 
     metric_1, metric_2, metric_3, metric_4 = st.columns(4)
 
