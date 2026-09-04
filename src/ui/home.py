@@ -707,4 +707,44 @@ def render_home() -> None:
     ):
         render_training_log(show_title=False)
 
+def render_session_evaluation(
+    activity: dict[str, Any] | None,
+    planned_training: dict[str, Any] | None,
+    global_state: dict[str, Any],
+) -> None:
+    """Muestra la evaluación local del entrenador para el día seleccionado."""
+    evaluation = evaluate_selected_session(
+        activity_session=activity,
+        planned_training=planned_training,
+        global_state=global_state,
+    )
+
+    st.subheader("Evaluación del entrenador")
+
+    if evaluation["estado"] == "verde":
+        st.success(
+            f"Estado: {evaluation['estado'].upper()}"
+        )
+    elif evaluation["estado"] == "amarillo":
+        st.warning(
+            f"Estado: {evaluation['estado'].upper()}"
+        )
+    else:
+        st.error(
+            f"Estado: {evaluation['estado'].upper()}"
+        )
+
+    st.write(evaluation["resumen"])
+    st.write(
+        f"**Decisión para la siguiente sesión:** "
+        f"{evaluation['decision_siguiente']}"
+    )
+    st.write(
+        f"**Recomendación:** {evaluation['recomendacion']}"
+    )
+
+    if global_state.get("alertas"):
+        with st.expander("Alertas globales activas"):
+            for alert in global_state["alertas"]:
+                st.write(f"- {alert}")
 

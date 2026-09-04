@@ -7,6 +7,8 @@ from datetime import date
 
 import pandas as pd
 import streamlit as st
+from src.ui.styles import render_status_tag
+
 
 from src.database import (
     create_competition,
@@ -27,6 +29,7 @@ from src.services.competition_service import (
     seconds_to_time,
 )
 
+import html
 
 def get_plan_version_status(accepted_value: int) -> str:
     """Convierte el estado numérico de SQLite a una etiqueta legible."""
@@ -40,58 +43,124 @@ def get_plan_version_status(accepted_value: int) -> str:
 
 
 def render_competition_list() -> None:
-    """Muestra las competiciones guardadas y su comparación con objetivos."""
+    """Muestra las competiciones guardadas como tarjetas de resultado."""
     competitions = get_competitions()
 
     if not competitions:
         st.info("Todavía no hay competiciones registradas.")
         return
 
-    for competition in competitions:
-        with st.container(border=True):
-            left_column, right_column = st.columns([2, 1])
+    for index, competition in enumerate(competitions, start=1):
+        comparison = compare_result_with_goal(
+            competition["official_time_seconds"],
+            competition["goal_time_seconds"],
+        )
 
-            with left_column:
-                st.subheader(competition["name"])
-                st.write(f"**Fecha:** {competition['competition_date']}")
-                st.write(f"**Distancia:** {competition['distance_km']} km")
+        if not comparison["available"]:
+            status_label = "Sin resultado"
+            status_tone = "neutral"
+        elif comparison.get("achieved"):
+            status_label = "Objetivo cumplido"
+            status_tone = "success"
+        else:
+            status_label = "Objetivo pendiente"
+            status_tone = "warning"
 
-                if competition["comments"]:
-                    st.write(competition["comments"])
+        distance_label = f"{competition['distance_km']:g} km"
 
-            with right_column:
-                st.metric(
-                    "Objetivo",
-                    seconds_to_time(competition["goal_time_seconds"]),
-                )
-                st.metric(
-                    "Tiempo oficial",
-                    seconds_to_time(competition["official_time_seconds"]),
-                )
+        tags_html = "".join(
+            [
+                render_status_tag(status_label, status_tone),
+                render_status_tag(distance_label, "neutral"),
+            ]
+        )
 
-                if competition["average_pace_seconds_per_km"] is not None:
-                    st.write(
-                        "**Ritmo medio:** "
-                        f"{seconds_to_time(competition['average_pace_seconds_per_km'])} min/km"
-                    )
+        badge_text = (
+            seconds_to_time(competition["official_time_seconds"])
+            if competition["official_time_seconds"] is not None
+            else "Pendiente"
+        )
 
-                if competition["average_heart_rate"] is not None:
-                    st.write(
-                        f"**FC media:** {competition['average_heart_rate']} ppm"
-                    )
+        description_text = (
+            competition["comments"] or "Sin comentarios sobre el circuito."
+        )
 
-            comparison = compare_result_with_goal(
-                competition["official_time_seconds"],
-                competition["goal_time_seconds"],
-            )
+        average_pace_text = (
+            f"{seconds_to_time(competition['average_pace_seconds_per_km'])} min/km"
+            if competition["average_pace_seconds_per_km"] is not None
+            else "—"
+        )
 
-            if comparison["available"]:
-                if comparison.get("achieved"):
-                    st.success(comparison["message"])
-                else:
-                    st.warning(comparison["message"])
+        average_heart_rate_text = (
+            f"{competition['average_heart_rate']} ppm"
+            if competition["average_heart_rate"] is not None
+            else "—"
+        )
+
+        st.markdown(
+            f"""
+            <div class="qi-card">
+                <div class="qi-card-header">
+                    <div>
+                        <div class="qi-card-title">
+                            <span class="qi-rank">{index:02d}</span>
+                            {html.escape(competition["name"])}
+                        </div>
+                        <div class="qi-card-subtitle">
+                            {html.escape(competition["competition_date"])}
+                        </div>
+                    </div>
+                    <span class="qi-match">{html.escape(badge_text)}</span>
+                </div>
+                <div class="qi-tags">{tags_html}</div>
+                <div class="qi-description">
+                    {html.escape(description_text)}
+                </div>
+                <div class="qi-metadata-grid">
+                    <div>
+                        <div class="qi-metadata-label">Objetivo</div>
+                        <div class="qi-metadata-value">
+                            {html.escape(
+                                seconds_to_time(competition["goal_time_seconds"])
+                            )}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="qi-metadata-label">Tiempo oficial</div>
+                        <div class="qi-metadata-value">
+                            {html.escape(
+                                seconds_to_time(
+                                    competition["official_time_seconds"]
+                                )
+                            )}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="qi-metadata-label">Ritmo medio</div>
+                        <div class="qi-metadata-value">
+                            {html.escape(average_pace_text)}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="qi-metadata-label">FC media</div>
+                        <div class="qi-metadata-value">
+                            {html.escape(average_heart_rate_text)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        if comparison["available"]:
+            if comparison.get("achieved"):
+                st.caption(f"✔ {comparison['message']}")
             else:
                 st.caption(comparison["message"])
+        else:
+            st.caption(comparison["message"])
+
 
 
 def render_result_form() -> None:
