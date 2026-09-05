@@ -810,6 +810,74 @@ def render_home() -> None:
     st.divider()
 
 
+def render_plan_vs_actual_comparison(
+    planned_training: dict[str, Any] | None,
+    activity: dict[str, Any] | None,
+) -> None:
+    """Muestra una comparación numérica entre lo planificado y lo realizado.
+
+    Solo compara los campos que existen en ambos lados. No inventa datos
+    cuando falta la sesión planificada o la sesión realizada.
+    """
+    if planned_training is None or activity is None:
+        return
+
+    st.markdown("#### Planificado frente a realizado")
+
+    metric_1, metric_2, metric_3 = st.columns(3)
+
+    planned_distance = planned_training.get("target_distance_km")
+    actual_distance = activity.get("distance_km")
+
+    if planned_distance is not None and actual_distance is not None:
+        metric_1.metric(
+            "Distancia",
+            f"{actual_distance:g} km",
+            delta=f"{actual_distance - planned_distance:+.1f} km",
+        )
+    else:
+        metric_1.metric(
+            "Distancia",
+            format_value(actual_distance, " km"),
+        )
+
+    planned_rpe = planned_training.get("target_rpe")
+    actual_rpe = activity.get("rpe")
+
+    if planned_rpe is not None and actual_rpe is not None:
+        metric_2.metric(
+            "RPE",
+            f"{actual_rpe}/10",
+            delta=f"{actual_rpe - planned_rpe:+d}",
+            delta_color="inverse",
+        )
+    else:
+        metric_2.metric(
+            "RPE",
+            format_value(actual_rpe, "/10"),
+        )
+
+    planned_duration = planned_training.get("target_duration_min")
+    actual_duration = activity.get("duration_minutes")
+
+    if planned_duration is not None and actual_duration is not None:
+        metric_3.metric(
+            "Duración",
+            f"{actual_duration:.0f} min",
+            delta=f"{actual_duration - planned_duration:+.0f} min",
+        )
+    else:
+        metric_3.metric(
+            "Duración",
+            format_value(actual_duration, " min"),
+        )
+
+    st.caption(
+        "Las diferencias se calculan solo cuando existen ambos valores, "
+        "planificado y realizado."
+    )
+
+
 def render_session_evaluation(
     activity: dict[str, Any] | None,
     planned_training: dict[str, Any] | None,
@@ -837,6 +905,8 @@ def render_session_evaluation(
             f"Estado: {evaluation['estado'].upper()}"
         )
 
+    render_plan_vs_actual_comparison(planned_training, activity)
+
     st.write(evaluation["resumen"])
     st.write(
         f"**Decisión para la siguiente sesión:** "
@@ -850,4 +920,5 @@ def render_session_evaluation(
         with st.expander("Alertas globales activas"):
             for alert in global_state["alertas"]:
                 st.write(f"- {alert}")
+
 
