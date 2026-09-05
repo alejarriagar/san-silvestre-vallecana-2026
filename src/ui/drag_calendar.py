@@ -165,6 +165,7 @@ def render_drag_calendar(
         "editable": True,
         "eventStartEditable": True,
         "eventDurationEditable": False,
+        "eventDragMinDistance": 10,
         "selectable": True,
         "initialDate": selected_date,
         "initialView": "dayGridMonth",
@@ -178,6 +179,7 @@ def render_drag_calendar(
         "firstDay": 1,
         "locale": "es",
     }
+
 
     custom_css = """
         .fc {
@@ -235,8 +237,15 @@ def render_drag_calendar(
         events=events,
         options=calendar_options,
         custom_css=custom_css,
+        callbacks=["dateClick", "eventClick", "eventChange"],
         key="home_drag_calendar",
     )
+
+    st.markdown("**Depuración temporal:**")
+    st.code(repr(state))
+
+
+
 
     if not isinstance(state, dict):
         return
@@ -251,10 +260,10 @@ def render_drag_calendar(
     if callback not in {
         "dateClick",
         "eventClick",
-        "eventDrop",
         "eventChange",
     }:
         return
+
 
     callback_payload = state.get(callback)
     event_data = extract_event(callback_payload)
@@ -301,7 +310,7 @@ def render_drag_calendar(
 
         st.rerun()
 
-    if callback in {"eventDrop", "eventChange"}:
+    if callback == "eventChange":
         if not event_id.startswith("plan-"):
             return
 

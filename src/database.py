@@ -1457,3 +1457,19 @@ def get_linked_planned_training(
 
     return dict(row) if row else None
 
+def delete_planned_training(training_id: int) -> None:
+    """Elimina permanentemente una sesión planificada.
+
+    Se usa solo para corregir duplicados o errores de introducción de datos.
+    Para "no voy a poder hacerla hoy", usa mover o cancelar en lugar de borrar.
+    """
+    with get_connection() as connection:
+        cursor = connection.execute(
+            "DELETE FROM planned_trainings WHERE id = ?",
+            (training_id,),
+        )
+
+        if cursor.rowcount == 0:
+            raise ValueError(
+                "No se ha encontrado la sesión planificada a eliminar."
+            )

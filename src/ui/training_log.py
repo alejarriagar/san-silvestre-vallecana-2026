@@ -366,41 +366,42 @@ def render_training_log(show_title: bool = True) -> None:
         )
 
         rows.append(
-            {
-                "Fecha": session["session_date"],
-                "Deporte": session["sport"],
-                "Tipo": session["session_type"],
-                "Plan relacionado": (
-                    related_training["session_type"]
-                    if related_training
-                    else "Sin vincular"
-                ),
-                "Duración (min)": (
-                    session["duration_minutes"]
-                    if session["duration_minutes"] is not None
-                    else "—"
-                ),
-                "Distancia (km)": (
-                    session["distance_km"]
-                    if session["distance_km"] is not None
-                    else "—"
-                ),
-                "Ritmo": pace_to_text(
-                    session["average_pace_seconds_per_km"]
-                ),
-                "RPE": (
-                    session["rpe"]
-                    if session["rpe"] is not None
-                    else "—"
-                ),
-                "Dolor después": (
-                    session["pain_after"]
-                    if session["pain_after"] is not None
-                    else "—"
-                ),
-                "Origen": session["source"],
-            }
-        )
+        {
+            "Fecha": session["session_date"],
+            "Deporte": session["sport"],
+            "Tipo": session["session_type"],
+            "Plan relacionado": (
+                related_training["session_type"]
+                if related_training
+                else "Sin vincular"
+            ),
+            "Duración (min)": (
+                f"{session['duration_minutes']:.1f}"
+                if session["duration_minutes"] is not None
+                else "—"
+            ),
+            "Distancia (km)": (
+                f"{session['distance_km']:.2f}"
+                if session["distance_km"] is not None
+                else "—"
+            ),
+            "Ritmo": pace_to_text(
+                session["average_pace_seconds_per_km"]
+            ),
+            "RPE": (
+                str(session["rpe"])
+                if session["rpe"] is not None
+                else "—"
+            ),
+            "Dolor después": (
+                str(session["pain_after"])
+                if session["pain_after"] is not None
+                else "—"
+            ),
+            "Origen": session["source"],
+        }
+    )
+
 
 
     st.dataframe(

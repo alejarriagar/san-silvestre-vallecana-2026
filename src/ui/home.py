@@ -11,15 +11,21 @@ from typing import Any
 import streamlit as st
 
 from src.database import (
+    delete_planned_training,
     get_activity_sessions_between,
+    get_linked_planned_training,
     get_session_attachments,
-    get_training_plan,
     get_session_nutrition,
+    get_training_plan,
     move_planned_training,
+    update_planned_training,
 )
+
+
 from src.services.attachment_service import (
     delete_activity_session_with_attachments,
 )
+
 from src.services.analytics_service import calculate_dashboard_metrics
 from src.services.safety_rules import evaluate_training_state
 from src.services.session_evaluation_service import (
@@ -28,6 +34,8 @@ from src.services.session_evaluation_service import (
 from src.ui.training_log import render_training_log
 from src.ui.drag_calendar import render_drag_calendar
 from src.ui.styles import render_hero, render_status_tag
+from src.services.session_service import SessionValidationError
+from src.ui.planner import build_training_payload, render_training_fields
 
 
 
@@ -665,13 +673,71 @@ def render_home() -> None:
 
     detail_column, coach_column = st.columns([1.45, 1])
 
+    detail_column, coach_column = st.columns([1.45, 1])
+
     with detail_column:
         st.subheader("Planificación del día")
         planned_training = render_planned_training_detail(selected_plan)
 
+        if planned_training is not None:
+            with st.expander("Editar entrenamiento planificado"):
+                with st.form(
+                    f"home_edit_plan_form_{planned_training['id']}"
+                ):
+                    edit_fields = render_training_fields(
+                        f"home_edit_plan_{planned_training['id']}",
+                        defaults=planned_training,
+                    )
+                    edit_submitted = st.form_submit_button(
+                        "Guardar cambios",
+                        type="primary",
+                    )
+
+                if edit_submitted:
+                    try:
+                        updated_training = build_training_payload(
+                            training_id=planned_training["id"],
+                            **edit_fields,
+                        )
+                        update_planned_training(updated_training)
+                        st.success(
+                            "Entrenamiento actualizado correctamente."
+                        )
+                        st.rerun()
+                    except SessionValidationError as error:
+                        st.error(str(error))
+
+            with st.expander("Eliminar entrenamiento planificado"):
+                st.warning(
+                    "Esta acción elimina permanentemente la sesión "
+                    "planificada. Si solo no vas a poder hacerla, es "
+                    "preferible moverla de fecha o cancelarla."
+                )
+
+                confirm_delete_plan = st.checkbox(
+                    "Confirmo que quiero eliminar esta sesión planificada.",
+                    key=f"home_delete_plan_confirm_{planned_training['id']}",
+                )
+
+                if st.button(
+                    "Eliminar sesión planificada",
+                    key=f"home_delete_plan_button_{planned_training['id']}",
+                    disabled=not confirm_delete_plan,
+                ):
+                    delete_planned_training(planned_training["id"])
+                    st.success("Sesión planificada eliminada.")
+                    st.rerun()
+
         st.divider()
         st.subheader("Actividad realizada")
         activity = render_activity_detail(selected_activities)
+
+        with st.expander(
+            "Registrar entrenamiento",
+            expanded=(len(selected_activities) == 0),
+        ):
+            render_training_log(show_title=False)
+
 
     with coach_column:
         render_session_evaluation(
@@ -701,11 +767,6 @@ def render_home() -> None:
 
     st.divider()
 
-    with st.expander(
-        "Registrar entrenamiento",
-        expanded=False,
-    ):
-        render_training_log(show_title=False)
 
 def render_session_evaluation(
     activity: dict[str, Any] | None,
