@@ -57,7 +57,9 @@ def extract_event(payload: Any) -> dict[str, Any] | None:
 def build_calendar_events(
     trainings: list[dict[str, Any]],
     activities: list[dict[str, Any]],
+    selected_date: str | None = None,
 ) -> list[dict[str, Any]]:
+
     """Convierte sesiones planificadas y realizadas en eventos visuales."""
     events: list[dict[str, Any]] = []
 
@@ -130,6 +132,18 @@ def build_calendar_events(
             }
         )
 
+    if selected_date:
+        events.append(
+            {
+                "start": selected_date,
+                "end": selected_date,
+                "display": "background",
+                "backgroundColor": "rgba(34, 229, 255, 0.20)",
+                "allDay": True,
+            }
+        )
+
+
     return events
 
 
@@ -159,7 +173,9 @@ def render_drag_calendar(
     events = build_calendar_events(
         trainings=trainings,
         activities=activities,
+        selected_date=st.session_state.get("home_selected_date"),
     )
+
 
     calendar_options = {
         "editable": True,
@@ -241,16 +257,7 @@ def render_drag_calendar(
         key="home_drag_calendar",
     )
 
-    st.markdown("**Depuración temporal:**")
-    st.code(repr(state))
 
-
-
-
-    if not isinstance(state, dict):
-        return
-
-    callback = state.get("callback")
 
     if not isinstance(state, dict):
         return
@@ -295,20 +302,72 @@ def render_drag_calendar(
     if callback in {"dateClick", "eventClick"}:
         clicked_date = parse_event_date(event_date)
 
-        if clicked_date is not None:
-            st.session_state["home_selected_date"] = (
-                clicked_date.isoformat()
-            )
-
         if event_id.startswith("plan-"):
             try:
-                st.session_state["home_selected_training_id"] = int(
+                clicked_training_id = int(
                     event_id.removeprefix("plan-")
                 )
             except ValueError:
-                pass
+                clicked_training_id = None
+
+            already_open = (
+                st.session_state.get("home_panel_open", False)
+                and st.session_state.get("home_selected_training_id")
+                == clicked_training_id
+            )
+
+            if already_open:
+                st.session_state["home_panel_open"] = False
+            else:
+                st.session_state["home_panel_open"] = True
+                st.session_state["home_selected_training_id"] = (
+                    clicked_training_id
+                )
+
+                if clicked_date is not None:
+                    st.session_state["home_selected_date"] = (
+                        clicked_date.isoformat()
+                    )
+
+        elif event_id.startswith("activity-"):
+            try:
+                clicked_activity_id = int(
+                    event_id.removeprefix("activity-")
+                )
+            except ValueError:
+                clicked_activity_id = None
+
+            already_open = (
+                st.session_state.get("home_panel_open", False)
+                and st.session_state.get("home_selected_activity_id")
+                == clicked_activity_id
+            )
+
+            if already_open:
+                st.session_state["home_panel_open"] = False
+            else:
+                st.session_state["home_panel_open"] = True
+                st.session_state["home_selected_activity_id"] = (
+                    clicked_activity_id
+                )
+
+                if clicked_date is not None:
+                    st.session_state["home_selected_date"] = (
+                        clicked_date.isoformat()
+                    )
+
+        else:
+            # Clic en un día vacío del calendario.
+            st.session_state["home_panel_open"] = True
+            st.session_state["home_selected_training_id"] = None
+
+            if clicked_date is not None:
+                st.session_state["home_selected_date"] = (
+                    clicked_date.isoformat()
+                )
 
         st.rerun()
+
 
     if callback == "eventChange":
         if not event_id.startswith("plan-"):

@@ -112,6 +112,10 @@ def initialise_home_state(trainings: list[dict[str, Any]]) -> None:
 
     if "home_selected_activity_id" not in st.session_state:
         st.session_state["home_selected_activity_id"] = None
+    
+    if "home_panel_open" not in st.session_state:
+        st.session_state["home_panel_open"] = True
+
 
 
 def group_by_date(
@@ -574,28 +578,33 @@ def render_activity_detail(
 
     st.divider()
 
-    with st.expander("Eliminar este registro"):
+    with st.popover(
+        "Eliminar registro",
+        icon=":material/delete:",
+    ):
         st.warning(
-            "Esta acción elimina permanentemente el entrenamiento realizado "
-            "y sus imágenes asociadas. No elimina la sesión planificada."
+            "Esta acción elimina permanentemente el entrenamiento "
+            "realizado y sus imágenes asociadas. No elimina la sesión "
+            "planificada."
         )
 
         delete_confirmed = st.checkbox(
-            "Confirmo que quiero eliminar este registro.",
+            "Confirmo que quiero eliminarlo.",
             key=f"home_delete_confirm_{activity['id']}",
         )
 
         if st.button(
-            "Eliminar registro",
+            "Eliminar definitivamente",
             key=f"home_delete_button_{activity['id']}",
             disabled=not delete_confirmed,
-            type="secondary",
+            type="primary",
         ):
             delete_activity_session_with_attachments(
                 activity["id"]
             )
             st.success("Registro eliminado correctamente.")
             st.rerun()
+
 
     return activity
 
@@ -659,10 +668,7 @@ def render_home() -> None:
     )
 
     st.divider()
-    render_drag_calendar(
-        trainings=trainings,
-        activities=activities,
-    )
+
 
 
     st.divider()
@@ -671,62 +677,96 @@ def render_home() -> None:
     selected_plan = plan_by_date.get(selected_date, [])
     selected_activities = activities_by_date.get(selected_date, [])
 
-    detail_column, coach_column = st.columns([1.45, 1])
+    calendar_column, side_column = st.columns([2, 1])
 
-    detail_column, coach_column = st.columns([1.45, 1])
+    with calendar_column:
+        render_drag_calendar(
+            trainings=trainings,
+            activities=activities,
+        )
 
-    with detail_column:
-        st.subheader("Planificación del día")
-        planned_training = render_planned_training_detail(selected_plan)
+    with side_column:
+
+        if not st.session_state.get("home_panel_open", True):
+            planned_training = None
+            activity = None
+            st.info(
+                "Panel cerrado. Haz clic en un entrenamiento del "
+                "calendario para ver o editar su detalle."
+            )
+        else:
+            st.subheader("Planificación del día")
+            planned_training = render_planned_training_detail(selected_plan)
+
 
         if planned_training is not None:
-            with st.expander("Editar entrenamiento planificado"):
-                with st.form(
-                    f"home_edit_plan_form_{planned_training['id']}"
+            icon_col_1, icon_col_2 = st.columns(2)
+
+            with icon_col_1:
+                with st.popover(
+                    "Editar",
+                    icon=":material/edit:",
+                    use_container_width=True,
                 ):
-                    edit_fields = render_training_fields(
-                        f"home_edit_plan_{planned_training['id']}",
-                        defaults=planned_training,
+                    with st.form(
+                        f"home_edit_plan_form_{planned_training['id']}"
+                    ):
+                        edit_fields = render_training_fields(
+                            f"home_edit_plan_{planned_training['id']}",
+                            defaults=planned_training,
+                        )
+                        edit_submitted = st.form_submit_button(
+                            "Guardar cambios",
+                            type="primary",
+                        )
+
+                    if edit_submitted:
+                        try:
+                            updated_training = build_training_payload(
+                                training_id=planned_training["id"],
+                                **edit_fields,
+                            )
+                            update_planned_training(updated_training)
+                            st.success(
+                                "Entrenamiento actualizado correctamente."
+                            )
+                            st.rerun()
+                        except SessionValidationError as error:
+                            st.error(str(error))
+
+            with icon_col_2:
+                with st.popover(
+                    "Eliminar",
+                    icon=":material/delete:",
+                    use_container_width=True,
+                ):
+                    st.warning(
+                        "Esta acción elimina permanentemente la sesión "
+                        "planificada. Si solo no vas a poder hacerla, "
+                        "es preferible moverla de fecha o cancelarla."
                     )
-                    edit_submitted = st.form_submit_button(
-                        "Guardar cambios",
+
+                    confirm_delete_plan = st.checkbox(
+                        "Confirmo que quiero eliminarla.",
+                        key=(
+                            f"home_delete_plan_confirm_"
+                            f"{planned_training['id']}"
+                        ),
+                    )
+
+                    if st.button(
+                        "Eliminar definitivamente",
+                        key=(
+                            f"home_delete_plan_button_"
+                            f"{planned_training['id']}"
+                        ),
+                        disabled=not confirm_delete_plan,
                         type="primary",
-                    )
-
-                if edit_submitted:
-                    try:
-                        updated_training = build_training_payload(
-                            training_id=planned_training["id"],
-                            **edit_fields,
-                        )
-                        update_planned_training(updated_training)
-                        st.success(
-                            "Entrenamiento actualizado correctamente."
-                        )
+                    ):
+                        delete_planned_training(planned_training["id"])
+                        st.success("Sesión planificada eliminada.")
                         st.rerun()
-                    except SessionValidationError as error:
-                        st.error(str(error))
 
-            with st.expander("Eliminar entrenamiento planificado"):
-                st.warning(
-                    "Esta acción elimina permanentemente la sesión "
-                    "planificada. Si solo no vas a poder hacerla, es "
-                    "preferible moverla de fecha o cancelarla."
-                )
-
-                confirm_delete_plan = st.checkbox(
-                    "Confirmo que quiero eliminar esta sesión planificada.",
-                    key=f"home_delete_plan_confirm_{planned_training['id']}",
-                )
-
-                if st.button(
-                    "Eliminar sesión planificada",
-                    key=f"home_delete_plan_button_{planned_training['id']}",
-                    disabled=not confirm_delete_plan,
-                ):
-                    delete_planned_training(planned_training["id"])
-                    st.success("Sesión planificada eliminada.")
-                    st.rerun()
 
         st.divider()
         st.subheader("Actividad realizada")
@@ -739,31 +779,33 @@ def render_home() -> None:
             render_training_log(show_title=False)
 
 
-    with coach_column:
-        render_session_evaluation(
-            activity=activity,
-            planned_training=planned_training,
-            global_state=global_state,
-        )
+    st.divider()
 
-        st.divider()
-        st.subheader("Resumen de recuperación")
+    render_session_evaluation(
 
-        st.write(
-            f"**Confianza de la evaluación global:** "
-            f"{global_state['confianza']:.0%}"
-        )
+        activity=activity,
+        planned_training=planned_training,
+        global_state=global_state,
+    )
 
-        if global_state.get("preguntas_pendientes"):
-            st.write("**Datos que ayudarían a mejorar la recomendación:**")
+    st.divider()
+    st.subheader("Resumen de recuperación")
 
-            for question in global_state["preguntas_pendientes"]:
-                st.write(f"- {question}")
+    st.write(
+        f"**Confianza de la evaluación global:** "
+        f"{global_state['confianza']:.0%}"
+    )
 
-        st.warning(
-            "Si aparecen hinchazón, bloqueo, inestabilidad o sensación de "
-            "fallo en la rodilla, reduce carga y consulta a un profesional."
-        )
+    if global_state.get("preguntas_pendientes"):
+        st.write("**Datos que ayudarían a mejorar la recomendación:**")
+
+        for question in global_state["preguntas_pendientes"]:
+            st.write(f"- {question}")
+
+    st.warning(
+        "Si aparecen hinchazón, bloqueo, inestabilidad o sensación de "
+        "fallo en la rodilla, reduce carga y consulta a un profesional."
+    )
 
     st.divider()
 
